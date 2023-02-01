@@ -15,6 +15,9 @@
 #include <set>
 #include <filesystem>
 #include <thread>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 namespace fs = std::filesystem;
 const int32_t WORKER_COUNT = 10;
@@ -34,15 +37,21 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    const std::vector<std::string>& daysDirList = utils::readLines(argv[1]);
-    const std::vector<std::vector<std::string>> taskChunks = generateTaskChunks(daysDirList, WORKER_COUNT);
-    std::vector<std::set<std::string>> taskUniqueAddresses;
+    json ex1 = json::parse(R"(
+      {
+        "pi": 3.141,
+        "happy": true
+      }
+    )");
+    //const std::vector<std::string>& daysDirList = utils::readLines(argv[1]);
+    //const std::vector<std::vector<std::string>> taskChunks = generateTaskChunks(daysDirList, WORKER_COUNT);
+    //std::vector<std::set<std::string>> taskUniqueAddresses;
 
-    int32_t workerIndex = 0;
-    for (const auto& dayDirPath : daysDirList) {
-        getUniqueAddresses(workerIndex, taskChunks[workerIndex], taskUniqueAddresses[workerIndex]);
-        ++ workerIndex;
-    }
+    //int32_t workerIndex = 0;
+    //for (const auto& dayDirPath : daysDirList) {
+    //    getUniqueAddresses(workerIndex, taskChunks[workerIndex], taskUniqueAddresses[workerIndex]);
+    //    ++ workerIndex;
+    //}
 
     return EXIT_SUCCESS;
 }

@@ -4,6 +4,9 @@ project(btc-processor-posix)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+
+add_subdirectory(nlohmann_json)
 
 function (add_executable_deps TGT)
     target_include_directories(
@@ -115,5 +118,6 @@ target_sources(
     include/btc_gen_address/logger.h
 )
 add_executable_deps(btc_gen_address)
+target_link_libraries(btc_gen_address nlohmann_json::nlohmann_json)
 
 install(TARGETS btc_combine_blocks btc_gen_address)
