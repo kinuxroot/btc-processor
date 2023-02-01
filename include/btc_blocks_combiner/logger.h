@@ -1,13 +1,13 @@
 #pragma once
 
 #include "logging/Logger.h"
-#include "logging/formatters/ModernFormatter.h"
+#include "logging/formatters/StreamFormatter.h"
 #include "logging/handlers/StreamHandler.h"
 #include "logging/handlers/FileHandler.h"
 
 using LoggerType = decltype(logging::LoggerFactory<logging::Level::Debug>::createLogger("Root", std::make_tuple(
-    logging::handlers::StreamHandler<logging::Level::Debug>(logging::formatters::modern::formatRecord),
-    logging::handlers::FileHandler<logging::Level::Debug>("file.log", logging::formatters::modern::formatRecord)
+    logging::handlers::StreamHandler<logging::Level::Debug>(logging::formatters::stream::formatRecord),
+    logging::handlers::FileHandler<logging::Level::Debug>("file.log", logging::formatters::stream::formatRecord)
 )));
 
 
