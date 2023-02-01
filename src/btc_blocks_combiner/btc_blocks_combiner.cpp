@@ -2,9 +2,9 @@
 #include "btc_blocks_combiner/logger.h"
 
 #include "logging/Logger.h"
-#include "logging/formatters/ModernFormatter.h"
 #include "logging/handlers/FileHandler.h"
 #include "utils/io_utils.h"
+#include "fmt/format.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -40,7 +40,7 @@ std::vector<std::string> readDaysList(const char* daysListFilePath) {
     std::ifstream daysListIndexFile(daysListFilePath);
 
     if (!daysListIndexFile.is_open()) {
-        logger.error(std::format("Can't open file {}", daysListFilePath));
+        logger.error(fmt::format("Can't open file {}", daysListFilePath));
 
         return daysListIndex;
     }
@@ -59,17 +59,17 @@ std::vector<std::string> readDaysList(const char* daysListFilePath) {
 
 
 void combineBlocksFromList(const std::string& listFilePath) {
-    logger.info(std::format("Combine blocks by date: {}", listFilePath));
+    logger.info(fmt::format("Combine blocks by date: {}", listFilePath));
     
     try {
         std::ifstream blockListFile(listFilePath.c_str());
 
         std::string blocksDirPath;
         std::getline(blockListFile, blocksDirPath);
-        std::string combinedBlocksFilePath = std::format("{}/{}", blocksDirPath, "combined-block-list.json");
+        std::string combinedBlocksFilePath = fmt::format("{}/{}", blocksDirPath, "combined-block-list.json");
 
         if (fs::exists(combinedBlocksFilePath)) {
-            logger.info(std::format("Skip combining blocks by date: {}", listFilePath));
+            logger.info(fmt::format("Skip combining blocks by date: {}", listFilePath));
 
             return;
         }
@@ -103,10 +103,10 @@ void combineBlocksFromList(const std::string& listFilePath) {
 
         combinedBlockFile << "]";
 
-        logger.info(std::format("Finished combining blocks by date: {}", listFilePath));
+        logger.info(fmt::format("Finished combining blocks by date: {}", listFilePath));
     }
     catch (const std::exception& e) {
-        logger.error(std::format("Error when combining blocks by date: {}", listFilePath));
+        logger.error(fmt::format("Error when combining blocks by date: {}", listFilePath));
         logger.error(e.what());
     }
 }

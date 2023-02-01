@@ -11,7 +11,7 @@
 namespace logging {
     template <class HandlerType>
     concept Handler = requires (HandlerType handler, const Record & record, Level level) {
-        handler.emit;
+        handler.template emit<Level::Debug>(record);
         { handler.format(record) } -> std::same_as<std::string>;
     }&& std::move_constructible<HandlerType> && !std::copy_constructible<HandlerType>;
 

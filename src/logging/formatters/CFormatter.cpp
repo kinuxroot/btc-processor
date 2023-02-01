@@ -2,6 +2,7 @@
 #include "logging/Record.h"
 #include <cstdint>
 #include <ctime>
+#include <cstring>
 
 namespace logging::formatters::cstr {
     static std::string makeTimeString(time_t timeObj);

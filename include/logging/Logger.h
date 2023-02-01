@@ -54,14 +54,14 @@ namespace logging {
             handleLog<messageLevel, handlerIndex - 1>(record);
 
             auto& handler = std::get<handlerIndex>(_attachedHandlers);
-            handler.emit<messageLevel>(record);
+            handler.template emit<messageLevel>(record);
         }
 
         template <Level messageLevel, int32_t handlerIndex>
             requires (handlerIndex == 0)
         void handleLog(const Record& record) {
             auto& handler = std::get<handlerIndex>(_attachedHandlers);
-            handler.emit<messageLevel>(record);
+            handler.template emit<messageLevel>(record);
         }
 
         Logger& critical(const std::string& message) {

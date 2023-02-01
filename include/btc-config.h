@@ -1,8 +1,6 @@
 #pragma once
 
-#include <string>
-#include <format>
-#include <cstdint>
+#include <cstddef>
 
 // 800MB
 const std::size_t COMBINED_BLOCK_FILE_SIZE = 800 * 1024 * 1024;
