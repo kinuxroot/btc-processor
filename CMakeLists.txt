@@ -113,3 +113,5 @@ target_sources(
     include/btc_gen_address/logger.h
 )
 add_executable_deps(btc_gen_address)
+
+install(TARGETS btc_combine_blocks btc_gen_address)
