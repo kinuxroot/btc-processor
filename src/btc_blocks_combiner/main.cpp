@@ -4,6 +4,7 @@
 #include "logging/Logger.h"
 #include "logging/handlers/FileHandler.h"
 #include "utils/io_utils.h"
+#include "utils/task_utils.h"
 #include "fmt/format.h"
 
 #include <cstdlib>
@@ -19,8 +20,6 @@
 namespace fs = std::filesystem;
 uint32_t WORKER_COUNT = 16;
 
-std::vector<std::string> readDaysList(const char* daysListFilePath);
-std::vector<std::vector<std::string>> generateTaskChunks(const std::vector<std::string>& daysDirList, uint32_t workerCount);
 void combineBlocksOfDays(uint32_t workerIndex, const std::vector<std::string>& daysList);
 void combineBlocksFromList(const std::string& listFilePath);
 
@@ -50,7 +49,7 @@ int main(int argc, char* argv[]) {
         const char* daysListFilePath = argv[1];
         logger.info(fmt::format("Read tasks form {}", daysListFilePath));
 
-        const std::vector<std::string>& daysList = readDaysList(argv[1]);
+        const std::vector<std::string>& daysList = utils::readLines(argv[1]);
         logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
         uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
@@ -76,42 +75,6 @@ int main(int argc, char* argv[]) {
     }
 
     return EXIT_SUCCESS;
-}
-
-std::vector<std::string> readDaysList(const char* daysListFilePath) {
-    std::vector<std::string> daysListIndex;
-    std::ifstream daysListIndexFile(daysListFilePath);
-    
-    if (!daysListIndexFile.is_open()) {
-        logger.error(fmt::format("Can't open file {}", daysListFilePath));
-
-        return daysListIndex;
-    }
-
-    while (daysListIndexFile) {
-        std::string line;
-        std::getline(daysListIndexFile, line);
-
-        if (line.size() > 0) {
-            daysListIndex.push_back(line);
-        }
-    }
-
-    return daysListIndex;
-}
-
-std::vector<std::vector<std::string>> generateTaskChunks(const std::vector<std::string>& daysDirList, uint32_t workerCount) {
-    std::vector<std::vector<std::string>> taskChunks(workerCount, std::vector<std::string>());
-
-    size_t daysTotalCount = daysDirList.size();
-    for (size_t dayIndex = 0; dayIndex != daysTotalCount; ++dayIndex) {
-        auto taskIndex = dayIndex % workerCount;
-        auto& taskChunk = taskChunks[taskIndex];
-
-        taskChunk.push_back(daysDirList[dayIndex]);
-    }
-
-    return taskChunks;
 }
 
 void combineBlocksOfDays(uint32_t workerIndex, const std::vector<std::string>& daysList) {

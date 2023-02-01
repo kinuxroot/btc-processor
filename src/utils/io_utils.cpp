@@ -1,7 +1,9 @@
 #include "btc-config.h"
 #include "utils/io_utils.h"
+#include "fmt/format.h"
 
 #include <fstream>
+#include <iostream>
 
 namespace utils {
     std::string readFile(const std::string& filePath)
@@ -16,6 +18,28 @@ namespace utils {
         }
 
         return "";
+    }
+    
+    std::vector<std::string> readLines(const std::string& filePath) {
+        std::vector<std::string> lines;
+        std::ifstream inputFile(filePath);
+
+        if (!inputFile.is_open()) {
+            std::cerr << fmt::format("Can't open file {}", filePath) << std::endl;
+
+            return lines;
+        }
+
+        while (inputFile) {
+            std::string line;
+            std::getline(inputFile, line);
+
+            if (line.size() > 0) {
+                lines.push_back(line);
+            }
+        }
+
+        return lines;
     }
 
     void copyStream(std::istream& is, std::ostream& os) {

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ctime>
 #include <cstring>
+#include <thread>
 
 namespace logging::formatters::cstr {
     static std::string makeTimeString(time_t timeObj);
@@ -15,8 +16,9 @@ namespace logging::formatters::cstr {
 
         char logLineBuffer[LOG_LINE_BUFFER_SIZE];
         memset(logLineBuffer, 0, LOG_LINE_BUFFER_SIZE);
-        snprintf(logLineBuffer, LOG_LINE_BUFFER_SIZE, "%-16s| [%s] %sZ - %s",
+        snprintf(logLineBuffer, LOG_LINE_BUFFER_SIZE, "%-16s| <thread-%x> [%s] %sZ - %s",
             record.name.c_str(),
+            std::this_thread::get_id(),
             record.getLevelName().c_str(),
             timeString.c_str(),
             record.message.c_str()

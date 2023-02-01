@@ -64,11 +64,13 @@ add_library_deps(logging)
 add_library(
     utils
     src/utils/io_utils.cpp
+    src/utils/task_utils.cpp
 )
 target_sources(
     utils
     PRIVATE
     include/utils/io_utils.h
+    include/utils/task_utils.h
 )
 add_library_deps(utils)
 

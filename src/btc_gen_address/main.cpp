@@ -4,6 +4,7 @@
 #include "logging/Logger.h"
 #include "logging/handlers/FileHandler.h"
 #include "utils/io_utils.h"
+#include "utils/task_utils.h"
 #include "fmt/format.h"
 
 #include <cstdlib>
@@ -18,14 +19,11 @@
 namespace fs = std::filesystem;
 const int32_t WORKER_COUNT = 10;
 
-std::vector<std::string> readDaysDirList(const char* daysListFilePath);
-std::vector<std::vector<std::string>> generateTaskChunks(const std::vector<std::string>& daysDirList, int32_t workerCount);
 void getUniqueAddresses(
     int32_t workerIndex,
     const std::vector<std::string>& daysDirList,
     std::set<std::string>& addresses
 );
-void combineBlocksFromList(const std::string& listFilePath);
 
 auto& logger = getLogger();
 
@@ -36,7 +34,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    const std::vector<std::string>& daysDirList = readDaysDirList(argv[1]);
+    const std::vector<std::string>& daysDirList = utils::readLines(argv[1]);
     const std::vector<std::vector<std::string>> taskChunks = generateTaskChunks(daysDirList, WORKER_COUNT);
     std::vector<std::set<std::string>> taskUniqueAddresses;
 
@@ -48,33 +46,6 @@ int main(int argc, char* argv[]) {
 
     return EXIT_SUCCESS;
 }
-
-std::vector<std::vector<std::string>> generateTaskChunks(const std::vector<std::string>& daysDirList, int32_t workerCount) {
-    return std::vector<std::vector<std::string>>();
-}
-
-std::vector<std::string> readDaysDirList(const char* daysListFilePath) {
-    std::vector<std::string> daysListIndex;
-    std::ifstream daysListIndexFile(daysListFilePath);
-
-    if (!daysListIndexFile.is_open()) {
-        logger.error(fmt::format("Can't open file {}", daysListFilePath));
-
-        return daysListIndex;
-    }
-
-    while (daysListIndexFile) {
-        std::string line;
-        std::getline(daysListIndexFile, line);
-
-        if (line.size() > 0) {
-            daysListIndex.push_back(line);
-        }
-    }
-
-    return daysListIndex;
-}
-
 
 void getUniqueAddresses(
     int32_t workerIndex,
