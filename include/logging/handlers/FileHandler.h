@@ -4,11 +4,36 @@
 #include <fstream>
 #include <string>
 #include <syncstream>
+#include <filesystem>
 
 namespace logging::handlers {
     template <Level HandlerLevel = Level::Warning>
     class FileHandler : public BaseHandler<HandlerLevel> {
     public:
+        static void ensureDirectory(const std::string& filePath) noexcept {
+            try {
+                namespace fs = std::filesystem;
+
+                auto parentDirectory = fs::absolute(filePath).parent_path();
+                fs::create_directories(parentDirectory);
+            }
+            catch (const std::exception& e) {
+                std::cerr << e.what() << std::endl;
+            }
+        }
+
+        static FileHandler create(const std::string filePath, Formatter formatter = defaultFormatter) {
+            ensureDirectory(filePath);
+
+            return FileHandler(filePath, formatter);
+        }
+
+        static FileHandler create(const std::string filePath, std::ios_base::openmode mode, Formatter formatter = defaultFormatter) {
+            ensureDirectory(filePath);
+
+            return FileHandler(filePath, mode, formatter);
+        }
+
         FileHandler(const std::string filePath, Formatter formatter = defaultFormatter) :
             BaseHandler<HandlerLevel>(formatter),
             _stream(filePath.c_str()), _syncStream(_stream) {

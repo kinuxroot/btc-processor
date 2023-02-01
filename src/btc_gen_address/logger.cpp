@@ -9,7 +9,7 @@ LoggerType& getLogger() {
 
     static auto logger = LoggerFactory<Level::Debug>::createLogger("Generate Address", std::make_tuple(
         StreamHandler<Level::Debug>(formatRecord),
-        FileHandler<Level::Debug>("btc_gen_address.log", formatRecord)
+        FileHandler<Level::Debug>::create("logs/btc_gen_address.log", formatRecord)
     ));
 
     return logger;

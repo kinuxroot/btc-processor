@@ -9,7 +9,7 @@ LoggerType& getLogger() {
 
     static auto logger = LoggerFactory<Level::Debug>::createLogger("Combine Blocks", std::make_tuple(
         StreamHandler<Level::Debug>(formatRecord),
-        FileHandler<Level::Debug>("btc_combine_blocks.log", std::ios::app, formatRecord)
+        FileHandler<Level::Debug>::create("logs/btc_combine_blocks.log", std::ios::app, formatRecord)
     ));
 
     return logger;
