@@ -40,6 +40,11 @@ function (add_common_deps TGT)
     )
 endfunction()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      add_compile_options(-pthread)
+      add_link_options(-pthread)
+endif()
+
 add_executable(
     btc_combine_blocks
     src/btc_blocks_combiner/btc_blocks_combiner.cpp
