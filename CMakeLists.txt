@@ -17,6 +17,10 @@ function (add_common_deps TGT)
         PRIVATE
         src/logging/formatters/CFormatter.cpp
         src/utils/io_utils.cpp
+        src/utils/io_utils.cpp
+        src/fmt/format.cc
+        src/fmt/ostream.cc
+        src/fmt/printf.cc
         include/btc-config.h
         include/logging/Formatter.h
         include/logging/Handler.h
@@ -40,11 +44,6 @@ add_executable(
     btc_combine_blocks
     src/btc_blocks_combiner/btc_blocks_combiner.cpp
     src/btc_blocks_combiner/logger.cpp
-    src/logging/formatters/CFormatter.cpp
-    src/utils/io_utils.cpp
-    src/fmt/format.cc
-    src/fmt/ostream.cc
-    src/fmt/printf.cc
 )
 target_sources(
     btc_combine_blocks
@@ -52,3 +51,15 @@ target_sources(
     include/btc_blocks_combiner/logger.h
 )
 add_common_deps(btc_combine_blocks)
+
+add_executable(
+    btc_gen_address
+    "src/btc_gen_address/btc_gen_address.cpp"
+    src/btc_gen_address/logger.cpp
+)
+target_sources(
+    btc_gen_address
+    PRIVATE
+    include/btc_gen_address/logger.h
+)
+add_common_deps(btc_gen_address)

@@ -2,6 +2,7 @@
 
 #include "logging/Handler.h"
 #include <iostream>
+#include <syncstream>
 
 namespace logging::handlers {
     template <Level HandlerLevel = Level::Warning>
@@ -38,7 +39,7 @@ namespace logging::handlers {
         template <Level emitLevel>
             requires (emitLevel <= HandlerLevel)
         void emit(const Record& record) {
-            _stream << this->format(record) << std::endl;
+            std::osyncstream(_stream) << this->format(record) << std::endl;
         }
 
         template <Level emitLevel>
