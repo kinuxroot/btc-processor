@@ -6,6 +6,7 @@
 #include "utils/io_utils.h"
 #include "utils/task_utils.h"
 #include "utils/json_utils.h"
+#include "utils/mem_utils.h"
 #include "fmt/format.h"
 
 #include <cstdlib>
@@ -19,16 +20,10 @@
 #include <thread>
 #include <nlohmann/json.hpp>
 
-#ifdef __GNUC__
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#endif //__GNUC__
-
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 16;
+uint32_t WORKER_COUNT = 24;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -54,7 +49,7 @@ inline void getUniqueAddressesOfTx(
 );
 
 inline std::set<std::string> mergeUniqueAddresses(
-    const std::vector<std::set<std::string>>& tasksUniqueAddresses
+    std::vector<std::set<std::string>>& tasksUniqueAddresses
 );
 
 inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address);
@@ -111,13 +106,10 @@ void getUniqueAddressesOfDays(
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
-    rusage rup;
     for (const auto& dayDir : *daysList) {
         getUniqueAddressesOfDay(dayDir, *addresses);
-#ifdef __GNUC__
-        getrusage(RUSAGE_SELF, &rup);
-        logger.debug(fmt::format("Use memory: {}MB {}B", rup.ru_maxrss, rup.ru_maxrss / 1024 / 1024));
-#endif //__GNUC__
+        auto usedMemory = utils::mem::getAllocatedMemory();
+        logger.debug(fmt::format("Used memory: {}GB {}MB", usedMemory / 1024 / 1024, usedMemory / 1024));
     }
 }
 
@@ -208,15 +200,17 @@ inline void getUniqueAddressesOfTx(
 }
 
 inline std::set<std::string> mergeUniqueAddresses(
-    const std::vector<std::set<std::string>>& tasksUniqueAddresses
+    std::vector<std::set<std::string>>& tasksUniqueAddresses
 ) {
     std::set<std::string> finalAddressSet;
     size_t totalAddressCount = 0;
-    for (const auto& taskUniqueAddresses : tasksUniqueAddresses) {
+    while (tasksUniqueAddresses.size()) {
+        const auto& taskUniqueAddresses = tasksUniqueAddresses.back();
         logger.info(fmt::format("Generated task unique addresses: {}", taskUniqueAddresses.size()));
         totalAddressCount += taskUniqueAddresses.size();
 
         finalAddressSet.insert(taskUniqueAddresses.cbegin(), taskUniqueAddresses.cend());
+        tasksUniqueAddresses.pop_back();
     }
 
     logger.info(fmt::format("Final unique addresses: {}/{}", finalAddressSet.size(), totalAddressCount));

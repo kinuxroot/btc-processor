@@ -70,6 +70,7 @@ add_library(
     src/utils/task_utils.cpp
     src/utils/json_utils.cpp
     src/utils/btc_utils.cpp
+    src/utils/mem_utils.cpp
 )
 target_sources(
     utils
@@ -78,6 +79,7 @@ target_sources(
     include/utils/task_utils.h
     include/utils/json_utils.h
     include/utils/btc_utils.h
+    include/utils/mem_utils.h
 )
 add_library_deps(utils)
 target_link_libraries(utils nlohmann_json::nlohmann_json)
