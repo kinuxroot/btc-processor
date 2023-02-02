@@ -25,19 +25,6 @@ void combineBlocksFromList(const std::string& listFilePath);
 
 auto& logger = getLogger();
 
-template <class T>
-void waitForTasks(std::vector<std::future<T>>& tasks) {
-    auto& logger = getLogger();
-
-    int32_t taskIndex = 0;
-    for (auto& task : tasks) {
-        logger.info(fmt::format("Wait for task stop: {}", taskIndex));
-        task.wait();
-
-        ++taskIndex;
-    }
-}
-
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_list>\n" << std::endl;
@@ -55,7 +42,7 @@ int main(int argc, char* argv[]) {
         uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
         logger.info(fmt::format("Worker count: {}", workerCount));
 
-        const auto& taskChunks = generateTaskChunks(daysList, workerCount);
+        const auto& taskChunks = utils::generateTaskChunks(daysList, workerCount);
         for (const auto& taskChunk : taskChunks) {
             logger.info(fmt::format("Task chunk size: {}", taskChunk.size()));
         }
@@ -67,7 +54,7 @@ int main(int argc, char* argv[]) {
 
             ++workerIndex;
         }
-        waitForTasks(tasks);
+        utils::waitForTasks(logger, tasks);
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;

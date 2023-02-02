@@ -12,6 +12,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <future>
 #include <set>
 #include <filesystem>
 #include <thread>
@@ -20,95 +21,224 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-const int32_t WORKER_COUNT = 10;
+uint32_t WORKER_COUNT = 16;
 
-void getUniqueAddresses(
-    int32_t workerIndex,
-    const std::vector<std::string>& daysDirList,
+void getUniqueAddressesOfDays(
+    uint32_t workerIndex,
+    const std::vector<std::string>* daysDirList,
+    std::set<std::string>* addresses
+);
+
+void getUniqueAddressesOfDay(
+    const std::string& dayDir,
     std::set<std::string>& addresses
 );
+
+inline void getUniqueAddressesOfBlock(
+    const std::string& dayDir,
+    const json& block,
+    std::set<std::string>& addresses
+);
+
+inline void getUniqueAddressesOfTx(
+    const std::string& dayDir,
+    const json& tx,
+    std::set<std::string>& addresses
+);
+
+inline std::set<std::string> mergeUniqueAddresses(
+    const std::vector<std::set<std::string>>& tasksUniqueAddresses
+);
+
+inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address);
+
+inline void dumpId2Address(const char* filePath, const std::vector<std::string>& id2Address);
+inline void dumpAddress2Id(const char* filePath, const std::map<std::string, std::size_t>& address2Id);
 
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_dir_list>\n" << std::endl;
+    if (argc != 4) {
+        std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_dir_list> <id2addr> <addr2id>\n" << std::endl;
 
         return EXIT_FAILURE;
     }
 
-    json ex1 = json::parse(R"(
-      {
-        "pi": 3.141,
-        "happy": true
-      }
-    )");
-    //const std::vector<std::string>& daysDirList = utils::readLines(argv[1]);
-    //const std::vector<std::vector<std::string>> taskChunks = generateTaskChunks(daysDirList, WORKER_COUNT);
-    //std::vector<std::set<std::string>> taskUniqueAddresses;
+    const char* daysListFilePath = argv[1];
+    logger.info(fmt::format("Read tasks form {}", daysListFilePath));
 
-    //int32_t workerIndex = 0;
-    //for (const auto& dayDirPath : daysDirList) {
-    //    getUniqueAddresses(workerIndex, taskChunks[workerIndex], taskUniqueAddresses[workerIndex]);
-    //    ++ workerIndex;
-    //}
+    const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
+    logger.info(fmt::format("Read tasks count: {}", daysList.size()));
+
+    uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
+    logger.info(fmt::format("Worker count: {}", workerCount));
+
+    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, WORKER_COUNT);
+    std::vector<std::set<std::string>> tasksUniqueAddresses(workerCount);
+
+    uint32_t workerIndex = 0;
+    std::vector<std::future<void>> tasks;
+    for (const auto& taskChunk : taskChunks) {
+        auto& taskUniqueeAddresses = tasksUniqueAddresses[workerIndex];
+        tasks.push_back(
+            std::async(getUniqueAddressesOfDays, workerIndex, &taskChunk, &taskUniqueeAddresses)
+        );
+
+        ++ workerIndex;
+    }
+    utils::waitForTasks(logger, tasks);
+
+    const auto& finalUniqueAddress = mergeUniqueAddresses(tasksUniqueAddresses);
+
+    std::vector<std::string> id2Address(finalUniqueAddress.begin(), finalUniqueAddress.end());
+    const char* id2AddressFilePath = argv[2];
+    dumpId2Address(id2AddressFilePath, id2Address);
+
+    const auto& address2Id = generateAddress2Id(id2Address);
+    const char* adddress2IdFilePath = argv[3];
+    dumpAddress2Id(adddress2IdFilePath, address2Id);
 
     return EXIT_SUCCESS;
 }
 
-void getUniqueAddresses(
-    int32_t workerIndex,
-    const std::vector<std::string>& daysDirList,
-    std::set<std::string>& addresses
+void getUniqueAddressesOfDays(
+    uint32_t workerIndex,
+    const std::vector<std::string>* daysList,
+    std::set<std::string>* addresses
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
-    //try {
-    //    std::ifstream blockListFile(listFilePath.c_str());
+    for (const auto& dayDir : *daysList) {
+        getUniqueAddressesOfDay(dayDir, *addresses);
+    }
+}
 
-    //    std::string blocksDirPath;
-    //    std::getline(blockListFile, blocksDirPath);
-    //    std::string combinedBlocksFilePath = fmt::format("{}/{}", blocksDirPath, "combined-block-list.json");
+void getUniqueAddressesOfDay(
+    const std::string& dayDir,
+    std::set<std::string>& addresses
+) {
+    try {
+        auto combinedBlocksFilePath = fmt::format("{}/{}", dayDir, "combined-block-list.json");
+        logger.info(fmt::format("Process combined blocks file: {}", dayDir));
 
-    //    if (fs::exists(combinedBlocksFilePath)) {
-    //        logger.info(fmt::format("Skip combining blocks by date: {}", listFilePath));
+        std::ifstream combinedBlocksFile(combinedBlocksFilePath.c_str());
+        if (!combinedBlocksFile.is_open()) {
+            logger.warning(fmt::format("Finished process blocks by date because file not exists: {}", combinedBlocksFilePath));
+            return;
+        }
 
-    //        return;
-    //    }
+        json blocks;
+        combinedBlocksFile >> blocks;
+        logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
 
-    //    std::ofstream combinedBlockFile(combinedBlocksFilePath);
+        for (const auto& block : blocks) {
+            getUniqueAddressesOfBlock(dayDir, block, addresses);
+        }
 
-    //    combinedBlockFile << "[";
+        logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
+    }
+    catch (const std::exception& e) {
+        logger.error(fmt::format("Error when process blocks by date: {}", dayDir));
+        logger.error(e.what());
+    }
+}
 
-    //    bool isFirstBlock = true;
-    //    while (blockListFile) {
-    //        std::string blockFilePath;
-    //        std::getline(blockListFile, blockFilePath);
+inline void getUniqueAddressesOfBlock(
+    const std::string& dayDir,
+    const json& block,
+    std::set<std::string>& addresses
+) {
+    std::string blockHash = block.at("hash");
 
-    //        if (blockFilePath.size() == 0) {
-    //            break;
-    //        }
+    try {
+        const auto& txs = block["tx"];
 
-    //        if (!isFirstBlock) {
-    //            combinedBlockFile << ",";
-    //        }
-    //        else {
-    //            isFirstBlock = false;
-    //        }
+        for (const auto& tx : txs) {
+            getUniqueAddressesOfTx(dayDir, tx, addresses);
+        }
+    }
+    catch (std::exception& e) {
+        logger.error(fmt::format("Error when process block {}:{}", dayDir, blockHash));
+        logger.error(e.what());
+    }
+}
 
-    //        std::ifstream blockFile(blockFilePath.c_str(), std::ios::binary);
-    //        utils::copyStream(blockFile, combinedBlockFile);
-    //        blockFile.close();
+inline void getUniqueAddressesOfTx(
+    const std::string& dayDir,
+    const json& tx,
+    std::set<std::string>& addresses
+) {
+    std::string txHash = tx.at("hash");
 
-    //        fs::remove(blockFilePath);
-    //    }
+    try {
+        const auto& inputs = tx.at("inputs");
+        for (const auto& input : inputs) {
+            const auto prevOutItem = input.find("prev_out");
+            if (prevOutItem == input.cend()) {
+                continue;
+            }
+            const auto& prevOut = prevOutItem.value();
 
-    //    combinedBlockFile << "]";
+            const auto addrItem = prevOut.find("addr");
+            if (addrItem == prevOut.cend()) {
+                continue;
+            }
+            addresses.insert(addrItem.value());
+        }
 
-    //    logger.info(fmt::format("Finished combining blocks by date: {}", listFilePath));
-    //}
-    //catch (const std::exception& e) {
-    //    logger.error(fmt::format("Error when combining blocks by date: {}", listFilePath));
-    //    logger.error(e.what());
-    //}
+        const auto& outputs = tx.at("out");
+        for (const auto& output : outputs) {
+            addresses.insert(output["addr"]);
+        }
+    }
+    catch (std::exception& e) {
+        logger.error(fmt::format("Error when process tx {}:{}", dayDir, txHash));
+        logger.error(e.what());
+    }
+}
+
+inline std::set<std::string> mergeUniqueAddresses(
+    const std::vector<std::set<std::string>>& tasksUniqueAddresses
+) {
+    std::set<std::string> finalAddressSet;
+    size_t totalAddressCount = 0;
+    for (const auto& taskUniqueAddresses : tasksUniqueAddresses) {
+        logger.info(fmt::format("Generated task unique addresses: {}", taskUniqueAddresses.size()));
+        totalAddressCount += taskUniqueAddresses.size();
+
+        finalAddressSet.insert(taskUniqueAddresses.cbegin(), taskUniqueAddresses.cend());
+    }
+
+    logger.info(fmt::format("Final unique addresses: {}/{}", finalAddressSet.size(), totalAddressCount));
+
+    return finalAddressSet;
+}
+
+inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address) {
+    std::map<std::string, std::size_t> address2Id;
+
+    size_t addressId = 0;
+    for (const auto& address : id2Address) {
+        address2Id[address] = addressId;
+
+        ++ addressId;
+    }
+
+    return address2Id;
+}
+
+inline void dumpId2Address(const char* filePath, const std::vector<std::string>& id2Address) {
+    logger.info(fmt::format("Dump i2daddr: {}", filePath));
+
+    json id2AddressJson(id2Address);
+    std::ofstream id2AddressFile(filePath);
+    id2AddressFile << id2AddressJson;
+}
+
+inline void dumpAddress2Id(const char* filePath, const std::map<std::string, std::size_t>& address2Id) {
+    logger.info(fmt::format("Dump addr2id: {}", filePath));
+
+    json address2IdJson(address2Id);
+    std::ofstream adddress2IdFile(filePath);
+    adddress2IdFile << address2IdJson;
 }
