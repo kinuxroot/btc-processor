@@ -22,7 +22,7 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 16;
+uint32_t WORKER_COUNT = 10;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -181,15 +181,17 @@ inline void getUniqueAddressesOfTx(
             const auto& prevOut = prevOutItem.value();
 
             const auto addrItem = prevOut.find("addr");
-            if (addrItem == prevOut.cend()) {
-                continue;
+            if (addrItem != prevOut.cend()) {
+                addresses.insert(addrItem.value());
             }
-            addresses.insert(addrItem.value());
         }
 
         const auto& outputs = utils::json::get(tx, "out");
         for (const auto& output : outputs) {
-            addresses.insert(output["addr"]);
+            const auto addrItem = output.find("addr");
+            if (addrItem != output.cend()) {
+                addresses.insert(addrItem.value());
+            }
         }
     }
     catch (std::exception& e) {
@@ -211,6 +213,7 @@ inline std::set<std::string> mergeUniqueAddresses(
     }
 
     logger.info(fmt::format("Final unique addresses: {}/{}", finalAddressSet.size(), totalAddressCount));
+    logger.info(fmt::format("Remove duplicated addresses: {}", totalAddressCount - finalAddressSet.size()));
 
     return finalAddressSet;
 }
