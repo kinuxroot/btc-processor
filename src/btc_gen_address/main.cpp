@@ -22,7 +22,7 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 10;
+uint32_t WORKER_COUNT = 64;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -72,6 +72,7 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
     uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
+    logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, WORKER_COUNT);
