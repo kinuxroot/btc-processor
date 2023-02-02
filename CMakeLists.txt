@@ -68,14 +68,17 @@ add_library(
     utils
     src/utils/io_utils.cpp
     src/utils/task_utils.cpp
+    src/utils/json_utils.cpp
 )
 target_sources(
     utils
     PRIVATE
     include/utils/io_utils.h
     include/utils/task_utils.h
+    include/utils/json_utils.h
 )
 add_library_deps(utils)
+target_link_libraries(utils nlohmann_json::nlohmann_json)
 
 add_library(
     fmt

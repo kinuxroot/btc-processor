@@ -5,6 +5,7 @@
 #include "logging/handlers/FileHandler.h"
 #include "utils/io_utils.h"
 #include "utils/task_utils.h"
+#include "utils/json_utils.h"
 #include "fmt/format.h"
 
 #include <cstdlib>
@@ -148,7 +149,7 @@ inline void getUniqueAddressesOfBlock(
     const json& block,
     std::set<std::string>& addresses
 ) {
-    std::string blockHash = block.at("hash");
+    std::string blockHash = utils::json::get(block, "hash");
 
     try {
         const auto& txs = block["tx"];
@@ -168,10 +169,10 @@ inline void getUniqueAddressesOfTx(
     const json& tx,
     std::set<std::string>& addresses
 ) {
-    std::string txHash = tx.at("hash");
+    std::string txHash = utils::json::get(tx, "hash");
 
     try {
-        const auto& inputs = tx.at("inputs");
+        const auto& inputs = utils::json::get(tx, "inputs");
         for (const auto& input : inputs) {
             const auto prevOutItem = input.find("prev_out");
             if (prevOutItem == input.cend()) {
@@ -186,7 +187,7 @@ inline void getUniqueAddressesOfTx(
             addresses.insert(addrItem.value());
         }
 
-        const auto& outputs = tx.at("out");
+        const auto& outputs = utils::json::get(tx, "out");
         for (const auto& output : outputs) {
             addresses.insert(output["addr"]);
         }
