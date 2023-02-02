@@ -19,10 +19,16 @@
 #include <thread>
 #include <nlohmann/json.hpp>
 
+#ifdef __GNUC__
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif //__GNUC__
+
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 64;
+uint32_t WORKER_COUNT = 16;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -54,7 +60,6 @@ inline std::set<std::string> mergeUniqueAddresses(
 inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address);
 
 inline void dumpId2Address(const char* filePath, const std::vector<std::string>& id2Address);
-inline void dumpAddress2Id(const char* filePath, const std::map<std::string, std::size_t>& address2Id);
 
 auto& logger = getLogger();
 
@@ -96,10 +101,6 @@ int main(int argc, char* argv[]) {
     const char* id2AddressFilePath = argv[2];
     dumpId2Address(id2AddressFilePath, id2Address);
 
-    const auto& address2Id = generateAddress2Id(id2Address);
-    const char* adddress2IdFilePath = argv[3];
-    dumpAddress2Id(adddress2IdFilePath, address2Id);
-
     return EXIT_SUCCESS;
 }
 
@@ -110,8 +111,13 @@ void getUniqueAddressesOfDays(
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
+    rusage rup;
     for (const auto& dayDir : *daysList) {
         getUniqueAddressesOfDay(dayDir, *addresses);
+#ifdef __GNUC__
+        getrusage(RUSAGE_SELF, &rup);
+        logger.debug(fmt::format("Use memory: {}MB {}B", rup.ru_maxrss, rup.ru_maxrss / 1024 / 1024));
+#endif //__GNUC__
     }
 }
 
@@ -238,12 +244,4 @@ inline void dumpId2Address(const char* filePath, const std::vector<std::string>&
     json id2AddressJson(id2Address);
     std::ofstream id2AddressFile(filePath);
     id2AddressFile << id2AddressJson;
-}
-
-inline void dumpAddress2Id(const char* filePath, const std::map<std::string, std::size_t>& address2Id) {
-    logger.info(fmt::format("Dump addr2id: {}", filePath));
-
-    json address2IdJson(address2Id);
-    std::ofstream adddress2IdFile(filePath);
-    adddress2IdFile << address2IdJson;
 }
