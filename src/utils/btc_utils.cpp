@@ -68,10 +68,10 @@ namespace utils::btc {
         }
     }
 
-    std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address) {
-        std::map<std::string, std::size_t> address2Id;
+    std::map<std::string, BtcId> generateAddress2Id(const std::vector<std::string>& id2Address) {
+        std::map<std::string, BtcId> address2Id;
 
-        size_t addressId = 0;
+        uint32_t addressId = 0;
         for (const auto& address : id2Address) {
             address2Id[address] = addressId;
 

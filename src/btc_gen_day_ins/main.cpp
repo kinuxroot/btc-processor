@@ -8,6 +8,7 @@
 #include "utils/json_utils.h"
 #include "utils/btc_utils.h"
 #include "fmt/format.h"
+#include <nlohmann/json.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -18,7 +19,7 @@
 #include <set>
 #include <filesystem>
 #include <thread>
-#include <nlohmann/json.hpp>
+#include <iostream>
 
 using json = nlohmann::json;
 
@@ -27,29 +28,29 @@ namespace fs = std::filesystem;
 void generateTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    const std::map<std::string, std::size_t>* address2Id
+    const std::map<std::string, BtcId>* address2Id
 );
 
 void generateTxInputsOfDay(
     const std::string& dayDir,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 );
 
-inline std::vector<std::vector<std::size_t>> generateTxInputsOfBlock(
+inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
     const std::string& dayDir,
     const json& block,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 );
 
-inline std::vector<std::size_t> generateTxInputs(
+inline std::vector<BtcId> generateTxInputs(
     const std::string& dayDir,
     const json& tx,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 );
 
 inline void dumpDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<std::size_t>>> txInputsOfDay
+    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
 );
 
 auto& logger = getLogger();
@@ -95,7 +96,7 @@ int main(int argc, char* argv[]) {
 void generateTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysList,
-    const std::map<std::string, std::size_t>* address2Id
+    const std::map<std::string, BtcId>* address2Id
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
@@ -106,7 +107,7 @@ void generateTxInputsOfDays(
 
 void generateTxInputsOfDay(
     const std::string& dayDir,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 ) {
     try {
         auto combinedBlocksFilePath = fmt::format("{}/{}", dayDir, "combined-block-list.json");
@@ -122,7 +123,7 @@ void generateTxInputsOfDay(
         combinedBlocksFile >> blocks;
         logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
 
-        std::vector<std::vector<std::vector<std::size_t>>> txInputsOfDay;
+        std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
         for (const auto& block : blocks) {
             const auto& txInputsOfBlock = generateTxInputsOfBlock(dayDir, block, address2Id);
             if (txInputsOfBlock.size() > 0) {
@@ -143,13 +144,13 @@ void generateTxInputsOfDay(
     }
 }
 
-inline std::vector<std::vector<std::size_t>> generateTxInputsOfBlock(
+inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
     const std::string& dayDir,
     const json& block,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 ) {
     std::string blockHash = utils::json::get(block, "hash");
-    std::vector<std::vector<std::size_t>> inputIdsOfBlock;
+    std::vector<std::vector<BtcId>> inputIdsOfBlock;
 
     try {
         const auto& txs = block["tx"];
@@ -170,13 +171,13 @@ inline std::vector<std::vector<std::size_t>> generateTxInputsOfBlock(
     return inputIdsOfBlock;
 }
 
-inline std::vector<std::size_t> generateTxInputs(
+inline std::vector<BtcId> generateTxInputs(
     const std::string& dayDir,
     const json& tx,
-    const std::map<std::string, std::size_t>& address2Id
+    const std::map<std::string, BtcId>& address2Id
 ) {
     std::string txHash = utils::json::get(tx, "hash");
-    std::vector<std::size_t> inputIds;
+    std::vector<BtcId> inputIds;
 
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
@@ -202,12 +203,20 @@ inline std::vector<std::size_t> generateTxInputs(
         logger.error(e.what());
     }
 
+    if (inputIds.size() > 0) {
+        std::sort(inputIds.begin(), inputIds.end());
+        auto newEnd = std::unique(inputIds.begin(), inputIds.end());
+        if (newEnd != inputIds.end()) {
+            inputIds.erase(newEnd, inputIds.end());
+        }
+    }
+
     return inputIds;
 }
 
 void dumpDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<std::size_t>>> txInputsOfDay
+    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
 ) {
     logger.info(fmt::format("Dump day_ins: {}", filePath));
 
