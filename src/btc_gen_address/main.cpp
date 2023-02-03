@@ -23,7 +23,7 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 24;
+uint32_t WORKER_COUNT = 32;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
