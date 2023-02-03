@@ -35,6 +35,26 @@ namespace utils::btc {
         return id2Address;
     }
 
+    void loadId2Address(const char* filePath, std::vector<std::string>& id2Address) {
+        std::ifstream inputFile(filePath);
+        if (!inputFile.is_open()) {
+            std::cerr << "Id2Address file not found" << std::endl;
+
+            return;
+        }
+
+        while (inputFile) {
+            std::string line;
+            std::getline(inputFile, line);
+
+            if (!line.size()) {
+                break;
+            }
+
+            id2Address.push_back(line);
+        }
+    }
+
     void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address) {
         std::cout << fmt::format("Dump i2daddr: {}", filePath) << std::endl;
 

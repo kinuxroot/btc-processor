@@ -79,14 +79,20 @@ int main(int argc, char* argv[]) {
 
     const char* id2AddressFilePath = argv[2];
     logger.info("Load id2Address...");
-    const auto& id2Address = utils::btc::loadId2Address(id2AddressFilePath);
-    logger.info(fmt::format("Loaded id2Address: {} items", id2Address.size()));
+    std::vector<std::string>* id2Address = new std::vector<std::string>();
+    utils::btc::loadId2Address(id2AddressFilePath, *id2Address);
+    logger.info(fmt::format("Loaded id2Address: {} items", id2Address->size()));
 
     logUsedMemory();
 
     logger.info("Generating address2Id...");
-    const auto& address2Id = utils::btc::generateAddress2Id(id2Address);
+    const auto& address2Id = utils::btc::generateAddress2Id(*id2Address);
     logger.info("Generated address2Id...");
+
+    logUsedMemory();
+
+    logger.info("Release id2Address");
+    delete id2Address;
 
     logUsedMemory();
 
