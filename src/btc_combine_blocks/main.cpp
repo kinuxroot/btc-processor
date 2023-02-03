@@ -18,7 +18,6 @@
 #include <algorithm>
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 16;
 
 void combineBlocksOfDays(uint32_t workerIndex, const std::vector<std::string>& daysList);
 void combineBlocksFromList(const fs::path& dayDirPath);
@@ -33,9 +32,6 @@ int main(int32_t argc, char* argv[]) {
     }
     
     try {
-        fs::path daysBaseDirPath = argv[1];
-        logger.info(fmt::format("List file base directory: {}", daysBaseDirPath.string()));
-
         std::vector<std::string> daysList;
         int32_t inputFileCount = argc - 1;
         logger.info(fmt::format("List file count: {}", inputFileCount));
@@ -47,7 +43,7 @@ int main(int32_t argc, char* argv[]) {
         }
         logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-        uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
+        uint32_t workerCount = std::min(BTC_COMBINE_BLOCKS_WORKER_COUNT, std::thread::hardware_concurrency());
         logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
         logger.info(fmt::format("Worker count: {}", workerCount));
 

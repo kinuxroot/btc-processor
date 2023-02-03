@@ -19,6 +19,7 @@ function (add_executable_deps TGT)
         ${TGT}
         PRIVATE
         include/btc-config.h
+        include/btc-config.sample.h
     )
 
     target_link_libraries(${TGT} logging)
@@ -37,6 +38,7 @@ function (add_library_deps TGT)
         ${TGT}
         PRIVATE
         include/btc-config.h
+        include/btc-config.sample.h
     )
 endfunction()
 
@@ -126,6 +128,18 @@ target_sources(
 )
 add_executable_deps(btc_gen_address)
 target_link_libraries(btc_gen_address nlohmann_json::nlohmann_json)
+
+add_executable(
+    btc_combine_address
+    src/btc_combine_address/main.cpp
+    src/btc_combine_address/logger.cpp
+)
+target_sources(
+    btc_combine_address
+    PRIVATE
+    include/btc_combine_address/logger.h
+)
+add_executable_deps(btc_combine_address)
 
 add_executable(
     btc_gen_day_ins

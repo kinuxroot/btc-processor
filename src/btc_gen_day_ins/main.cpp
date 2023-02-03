@@ -23,7 +23,6 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 64;
 
 void generateTxInputsOfDays(
     uint32_t workerIndex,
@@ -68,7 +67,7 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(BTC_GEN_DAY_INS_WORKER_COUNT, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
@@ -77,7 +76,7 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Loaded id2Address: {} items", id2Address.size()));
     const auto& address2Id = utils::btc::generateAddress2Id(id2Address);
 
-    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, WORKER_COUNT);
+    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
 
     uint32_t workerIndex = 0;
     std::vector<std::future<void>> tasks;

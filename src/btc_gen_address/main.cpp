@@ -7,6 +7,7 @@
 #include "utils/task_utils.h"
 #include "utils/json_utils.h"
 #include "utils/mem_utils.h"
+#include "utils/btc_utils.h"
 #include "fmt/format.h"
 
 #include <cstdlib>
@@ -23,10 +24,6 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
-uint32_t WORKER_COUNT = 32;
-std::size_t ADDRESS_LENGTH = 32;
-std::size_t WRITE_BUFFER_ELEMENT_COUNT = 1024 * 1024;
-std::size_t WRITE_BUFFER_SIZE = ADDRESS_LENGTH * WRITE_BUFFER_ELEMENT_COUNT;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -55,8 +52,6 @@ inline std::set<std::string> mergeUniqueAddresses(
     std::vector<std::set<std::string>>& tasksUniqueAddresses
 );
 
-inline void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address);
-
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
@@ -72,11 +67,11 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(BTC_GEN_ADDRESS_WORKER_COUNT, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
-    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, WORKER_COUNT);
+    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
     std::vector<std::set<std::string>> tasksUniqueAddresses(workerCount);
 
     uint32_t workerIndex = 0;
@@ -94,7 +89,7 @@ int main(int argc, char* argv[]) {
     const auto& id2Address = mergeUniqueAddresses(tasksUniqueAddresses);
 
     const char* id2AddressFilePath = argv[2];
-    dumpId2Address(id2AddressFilePath, id2Address);
+    utils::btc::dumpId2Address(id2AddressFilePath, id2Address);
 
     return EXIT_SUCCESS;
 }
@@ -217,37 +212,4 @@ inline std::set<std::string> mergeUniqueAddresses(
     logger.info(fmt::format("Remove duplicated addresses: {}", totalAddressCount - finalAddressSet.size()));
 
     return finalAddressSet;
-}
-
-inline void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address) {
-    logger.info(fmt::format("Dump i2daddr: {}", filePath));
-
-    std::ofstream id2AddressFile(filePath);
-
-    size_t bufferedCount = 0;
-    size_t writtenCount = 0;
-
-    std::string writeBuffer;
-    writeBuffer.reserve(WRITE_BUFFER_SIZE);
-
-    for (const auto& address : id2Address) {
-        writeBuffer.append(address).append("\n");
-        ++bufferedCount;
-
-        if (bufferedCount && bufferedCount % WRITE_BUFFER_ELEMENT_COUNT == 0) {
-            id2AddressFile << writeBuffer;
-            writeBuffer.clear();
-            writtenCount = bufferedCount;
-
-            logger.info(fmt::format("Written {} addresses", writtenCount));
-        }
-    }
-
-    if (writtenCount < bufferedCount) {
-        id2AddressFile << writeBuffer;
-        writeBuffer.clear();
-        writtenCount = bufferedCount;
-
-        logger.info(fmt::format("Written {} addresses", writtenCount));
-    }
 }
