@@ -154,4 +154,4 @@ target_sources(
 add_executable_deps(btc_gen_day_ins)
 target_link_libraries(btc_gen_day_ins nlohmann_json::nlohmann_json)
 
-install(TARGETS btc_combine_blocks btc_gen_address btc_gen_day_ins)
+install(TARGETS btc_combine_blocks btc_combine_address btc_gen_address btc_gen_day_ins)
