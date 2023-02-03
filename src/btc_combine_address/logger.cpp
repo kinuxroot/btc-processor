@@ -1,4 +1,4 @@
-#include "btc_combine_blocks/logger.h"
+#include "btc_combine_address/logger.h"
 
 LoggerType& getLogger() {
     using logging::LoggerFactory;
@@ -7,7 +7,7 @@ LoggerType& getLogger() {
     using logging::handlers::FileHandler;
     using logging::formatters::cstr::formatRecord;
 
-    static auto logger = LoggerFactory<Level::Debug>::createLogger("Combine Blocks", std::make_tuple(
+    static auto logger = LoggerFactory<Level::Debug>::createLogger("Combine Addresses", std::make_tuple(
         StreamHandler<Level::Debug>(formatRecord),
         FileHandler<Level::Debug>::create("logs/btc_combine_address.log", std::ios::app, formatRecord)
     ));
