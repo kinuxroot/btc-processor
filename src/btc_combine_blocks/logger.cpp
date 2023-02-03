@@ -1,4 +1,4 @@
-#include "btc_blocks_combiner/logger.h"
+#include "btc_combine_blocks/logger.h"
 
 LoggerType& getLogger() {
     using logging::LoggerFactory;

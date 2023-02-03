@@ -1,5 +1,5 @@
 #include "btc-config.h"
-#include "btc_blocks_combiner/logger.h"
+#include "btc_gen_address/logger.h"
 
 #include "logging/Logger.h"
 #include "logging/handlers/FileHandler.h"

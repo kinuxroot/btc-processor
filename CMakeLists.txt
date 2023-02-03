@@ -104,13 +104,13 @@ add_library_deps(fmt)
 
 add_executable(
     btc_combine_blocks
-    src/btc_blocks_combiner/main.cpp
-    src/btc_blocks_combiner/logger.cpp
+    src/btc_combine_blocks/main.cpp
+    src/btc_combine_blocks/logger.cpp
 )
 target_sources(
     btc_combine_blocks
     PRIVATE
-    include/btc_blocks_combiner/logger.h
+    include/btc_combine_blocks/logger.h
 )
 add_executable_deps(btc_combine_blocks)
 
