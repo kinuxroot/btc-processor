@@ -100,4 +100,30 @@ namespace utils::btc {
 
         return address2Id;
     }
+
+    std::map<std::string, BtcId> loadAddress2Id(const char* filePath) {
+        std::map<std::string, BtcId> address2Id;
+
+        std::ifstream inputFile(filePath);
+        if (!inputFile.is_open()) {
+            std::cerr << "Id2Address file not found" << std::endl;
+
+            return address2Id;
+        }
+
+        BtcId addressId = 0;
+        while (inputFile) {
+            std::string line;
+            std::getline(inputFile, line);
+
+            if (!line.size()) {
+                break;
+            }
+
+            address2Id[line] = addressId;
+            ++addressId;
+        }
+
+        return address2Id;
+    }
 }
