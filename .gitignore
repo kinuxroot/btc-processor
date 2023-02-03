@@ -35,3 +35,4 @@ build
 out
 .gitignore
 .vs
+btc-config.h
