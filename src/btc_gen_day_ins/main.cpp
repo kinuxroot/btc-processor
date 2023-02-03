@@ -7,6 +7,7 @@
 #include "utils/task_utils.h"
 #include "utils/json_utils.h"
 #include "utils/btc_utils.h"
+#include "utils/mem_utils.h"
 #include "fmt/format.h"
 #include <nlohmann/json.hpp>
 
@@ -53,6 +54,8 @@ inline void dumpDayInputs(
     std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
 );
 
+inline void logUsedMemory();
+
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
@@ -72,16 +75,24 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
+    logUsedMemory();
+
     const char* id2AddressFilePath = argv[2];
     logger.info("Load id2Address...");
     const auto& id2Address = utils::btc::loadId2Address(id2AddressFilePath);
     logger.info(fmt::format("Loaded id2Address: {} items", id2Address.size()));
 
+    logUsedMemory();
+
     logger.info("Generating address2Id...");
     const auto& address2Id = utils::btc::generateAddress2Id(id2Address);
     logger.info("Generated address2Id...");
 
+    logUsedMemory();
+
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
+
+    logUsedMemory();
 
     uint32_t workerIndex = 0;
     std::vector<std::future<void>> tasks;
@@ -123,9 +134,12 @@ void generateTxInputsOfDay(
             return;
         }
 
+
+        logUsedMemory();
         json blocks;
         combinedBlocksFile >> blocks;
         logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
+        logUsedMemory();
 
         std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
         for (const auto& block : blocks) {
@@ -137,10 +151,14 @@ void generateTxInputsOfDay(
 
         logger.info(fmt::format("Dump tx inputs of {} blocks by date: {}", txInputsOfDay.size(), dayDir));
 
+        logUsedMemory();
+
         auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
         dumpDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
+
+        logUsedMemory();
     }
     catch (const std::exception& e) {
         logger.error(fmt::format("Error when process blocks by date: {}", dayDir));
@@ -227,4 +245,9 @@ void dumpDayInputs(
     json txInputsOfDayJson(txInputsOfDay);
     std::ofstream txInputsOfDayFile(filePath);
     txInputsOfDayFile << txInputsOfDayJson;
+}
+
+inline void logUsedMemory() {
+    auto usedMemory = utils::mem::getAllocatedMemory();
+    logger.debug(fmt::format("Used memory: {}GB {}MB", usedMemory / 1024 / 1024, usedMemory / 1024));
 }
