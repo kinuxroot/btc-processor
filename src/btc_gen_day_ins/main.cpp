@@ -76,7 +76,10 @@ int main(int argc, char* argv[]) {
     logger.info("Load id2Address...");
     const auto& id2Address = utils::btc::loadId2Address(id2AddressFilePath);
     logger.info(fmt::format("Loaded id2Address: {} items", id2Address.size()));
+
+    logger.info("Generating address2Id...");
     const auto& address2Id = utils::btc::generateAddress2Id(id2Address);
+    logger.info("Generated address2Id...");
 
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
 
