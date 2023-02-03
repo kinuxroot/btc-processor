@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdint>
+#include <string>
 
 namespace utils::btc {
     std::vector<std::string> loadId2Address(const char* filePath) {
@@ -15,19 +16,16 @@ namespace utils::btc {
 
             return id2Address;
         }
+        
+        while (inputFile) {
+            std::string line;
+            std::getline(inputFile, line);
 
-        nlohmann::json id2AddressJson;
-        inputFile >> id2AddressJson;
+            if (!line.size()) {
+                break;
+            }
 
-        if (!id2AddressJson.is_array()) {
-            std::cerr << "Id2Address file is not json list" << std::endl;
-
-            return id2Address;
-        }
-
-        for (const auto& addressJson : id2AddressJson) {
-            std::string addressString = addressJson;
-            id2Address.push_back(addressString);
+            id2Address.push_back(line);
         }
 
         return id2Address;

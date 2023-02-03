@@ -24,6 +24,9 @@ using json = nlohmann::json;
 
 namespace fs = std::filesystem;
 uint32_t WORKER_COUNT = 32;
+std::size_t ADDRESS_LENGTH = 32;
+std::size_t WRITE_BUFFER_ELEMENT_COUNT = 1024 * 1024;
+std::size_t WRITE_BUFFER_SIZE = ADDRESS_LENGTH * WRITE_BUFFER_ELEMENT_COUNT;
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -52,15 +55,13 @@ inline std::set<std::string> mergeUniqueAddresses(
     std::vector<std::set<std::string>>& tasksUniqueAddresses
 );
 
-inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address);
-
-inline void dumpId2Address(const char* filePath, const std::vector<std::string>& id2Address);
+inline void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address);
 
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_dir_list> <id2addr> <addr2id>\n" << std::endl;
+    if (argc != 3) {
+        std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_dir_list> <id2addr>\n" << std::endl;
 
         return EXIT_FAILURE;
     }
@@ -90,9 +91,8 @@ int main(int argc, char* argv[]) {
     }
     utils::waitForTasks(logger, tasks);
 
-    const auto& finalUniqueAddress = mergeUniqueAddresses(tasksUniqueAddresses);
+    const auto& id2Address = mergeUniqueAddresses(tasksUniqueAddresses);
 
-    std::vector<std::string> id2Address(finalUniqueAddress.begin(), finalUniqueAddress.end());
     const char* id2AddressFilePath = argv[2];
     dumpId2Address(id2AddressFilePath, id2Address);
 
@@ -219,23 +219,35 @@ inline std::set<std::string> mergeUniqueAddresses(
     return finalAddressSet;
 }
 
-inline std::map<std::string, std::size_t> generateAddress2Id(const std::vector<std::string>& id2Address) {
-    std::map<std::string, std::size_t> address2Id;
-
-    size_t addressId = 0;
-    for (const auto& address : id2Address) {
-        address2Id[address] = addressId;
-
-        ++ addressId;
-    }
-
-    return address2Id;
-}
-
-inline void dumpId2Address(const char* filePath, const std::vector<std::string>& id2Address) {
+inline void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address) {
     logger.info(fmt::format("Dump i2daddr: {}", filePath));
 
-    json id2AddressJson(id2Address);
     std::ofstream id2AddressFile(filePath);
-    id2AddressFile << id2AddressJson;
+
+    size_t bufferedCount = 0;
+    size_t writtenCount = 0;
+
+    std::string writeBuffer;
+    writeBuffer.reserve(WRITE_BUFFER_SIZE);
+
+    for (const auto& address : id2Address) {
+        writeBuffer.append(address).append("\n");
+        ++bufferedCount;
+
+        if (bufferedCount && bufferedCount % WRITE_BUFFER_ELEMENT_COUNT == 0) {
+            id2AddressFile << writeBuffer;
+            writeBuffer.clear();
+            writtenCount = bufferedCount;
+
+            logger.info(fmt::format("Written {} addresses", writtenCount));
+        }
+    }
+
+    if (writtenCount < bufferedCount) {
+        id2AddressFile << writeBuffer;
+        writeBuffer.clear();
+        writtenCount = bufferedCount;
+
+        logger.info(fmt::format("Written {} addresses", writtenCount));
+    }
 }
