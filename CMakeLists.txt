@@ -73,6 +73,7 @@ add_library(
     src/utils/json_utils.cpp
     src/utils/btc_utils.cpp
     src/utils/mem_utils.cpp
+    src/utils/union_find.cpp
 )
 target_sources(
     utils
@@ -82,6 +83,7 @@ target_sources(
     include/utils/json_utils.h
     include/utils/btc_utils.h
     include/utils/mem_utils.h
+    include/utils/union_find.h
 )
 add_library_deps(utils)
 target_link_libraries(utils nlohmann_json::nlohmann_json)
@@ -153,5 +155,18 @@ target_sources(
 )
 add_executable_deps(btc_gen_day_ins)
 target_link_libraries(btc_gen_day_ins nlohmann_json::nlohmann_json)
+
+add_executable(
+    btc_union_find
+    src/btc_union_find/main.cpp
+    src/btc_union_find/logger.cpp
+)
+target_sources(
+    btc_union_find
+    PRIVATE
+    include/btc_union_find/logger.h
+)
+add_executable_deps(btc_union_find)
+target_link_libraries(btc_union_find nlohmann_json::nlohmann_json)
 
 install(TARGETS btc_combine_blocks btc_combine_address btc_gen_address btc_gen_day_ins)

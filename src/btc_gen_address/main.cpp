@@ -56,7 +56,7 @@ auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_combine_blocks <days_dir_list> <id2addr>\n" << std::endl;
+        std::cerr << "Invalid arguments!\n\nUsage: btc_gen_address <days_dir_list> <id2addr>\n" << std::endl;
 
         return EXIT_FAILURE;
     }
