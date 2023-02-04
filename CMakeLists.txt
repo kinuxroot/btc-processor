@@ -169,4 +169,24 @@ target_sources(
 add_executable_deps(btc_union_find)
 target_link_libraries(btc_union_find nlohmann_json::nlohmann_json)
 
-install(TARGETS btc_combine_blocks btc_combine_address btc_gen_address btc_gen_day_ins)
+add_executable(
+    btc_merge_union_find
+    src/btc_merge_union_find/main.cpp
+    src/btc_merge_union_find/logger.cpp
+)
+target_sources(
+    btc_merge_union_find
+    PRIVATE
+    include/btc_merge_union_find/logger.h
+)
+add_executable_deps(btc_merge_union_find)
+target_link_libraries(btc_merge_union_find nlohmann_json::nlohmann_json)
+
+install(TARGETS
+    btc_combine_blocks
+    btc_combine_address
+    btc_gen_address
+    btc_gen_day_ins
+    btc_union_find
+    btc_merge_union_find
+)
