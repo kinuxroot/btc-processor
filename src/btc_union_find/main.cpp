@@ -24,14 +24,15 @@
 #include <iostream>
 #include <memory>
 
-using json = nlohmann::json;
-
 namespace fs = std::filesystem;
 
-void generateTxInputsOfDays(
+using json = nlohmann::json;
+using WeightedQuickUnionPtr = std::shared_ptr<utils::btc::WeightedQuickUnion>;
+
+WeightedQuickUnionPtr unionFindTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    const std::map<std::string, BtcId>* address2Id
+    BtcId maxId
 );
 
 void generateTxInputsOfDay(
@@ -73,7 +74,7 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(BTC_GEN_DAY_INS_WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(BTC_UNION_FIND_WORKER_COUNT, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
@@ -96,38 +97,60 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<std::shared_ptr<utils::btc::WeightedQuickUnion>> unionFindIdsOfTasks;
-    for (int32_t taskIndex = 0; taskIndex != workerCount; ++taskIndex) {
-        unionFindIdsOfTasks.push_back(std::make_shared<utils::btc::WeightedQuickUnion>(maxId));
+    //for (int32_t taskIndex = 0; taskIndex != workerCount; ++taskIndex) {
+    //    unionFindIdsOfTasks.push_back(std::make_shared<utils::btc::WeightedQuickUnion>(maxId));
+    //}
+
+    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
+    uint32_t workerIndex = 0;
+    std::vector<std::future<WeightedQuickUnionPtr>> tasks;
+    for (const auto& taskChunk : taskChunks) {
+        tasks.push_back(
+            std::async(unionFindTxInputsOfDays, workerIndex, &taskChunk, maxId)
+        );
+
+        ++workerIndex;
+    }
+    utils::waitForTasks(logger, tasks);
+
+    logUsedMemory();
+
+    std::vector<WeightedQuickUnionPtr> quickFindUnions;
+    for (auto& task : tasks) {
+        quickFindUnions.push_back(WeightedQuickUnionPtr(std::move(task.get())));
+    }
+
+    workerIndex = 0;
+    for (auto& quickFindUnion : quickFindUnions) {
+        logger.info(fmt::format("Worker {} result: {} {}", workerIndex, quickFindUnion.use_count(), quickFindUnion->getCount()));
+
+        ++workerIndex;
     }
 
     logUsedMemory();
 
-    const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
+    for (auto& quickFindUnion : quickFindUnions) {
+        logger.info(fmt::format("Worker {} result: {} {}", workerIndex, quickFindUnion.use_count(), quickFindUnion->getCount()));
+        quickFindUnion.reset();
+    }
 
-    //uint32_t workerIndex = 0;
-    //std::vector<std::future<void>> tasks;
-    //for (const auto& taskChunk : taskChunks) {
-    //    tasks.push_back(
-    //        std::async(generateTxInputsOfDays, workerIndex, &taskChunk, &address2Id)
-    //    );
-
-    //    ++workerIndex;
-    //}
-    //utils::waitForTasks(logger, tasks);
+    logUsedMemory();
 
     return EXIT_SUCCESS;
 }
 
-void generateTxInputsOfDays(
+WeightedQuickUnionPtr unionFindTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysList,
-    const std::map<std::string, BtcId>* address2Id
+    BtcId maxId
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
-    for (const auto& dayDir : *daysList) {
-        generateTxInputsOfDay(dayDir, *address2Id);
-    }
+    //for (const auto& dayDir : *daysList) {
+    //    generateTxInputsOfDay(dayDir, *address2Id);
+    //}
+
+    return std::make_shared<utils::btc::WeightedQuickUnion>(maxId);
 }
 
 void generateTxInputsOfDay(

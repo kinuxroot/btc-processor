@@ -5,6 +5,12 @@ namespace utils::btc {
 
     WeightedQuickUnion::WeightedQuickUnion(BtcSize count) :
         _ids(count, 0), _sizes(count, 1), _count(count) {
+        BtcSize currentId = 0;
+        for (auto& id : _ids) {
+            id = currentId;
+
+            ++currentId;
+        }
     }
 
     void WeightedQuickUnion::connected(BtcId p, BtcId q) {

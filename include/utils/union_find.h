@@ -18,6 +18,10 @@ namespace utils::btc {
         void save(const std::filesystem::path& path);
         void load(const std::filesystem::path& path);
 
+        BtcSize getCount() const {
+            return _count;
+        }
+
     private:
         std::vector<BtcId> _ids;
         std::vector<BtcSize> _sizes;
