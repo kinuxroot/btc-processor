@@ -169,4 +169,4 @@ target_sources(
 add_executable_deps(btc_union_find)
 target_link_libraries(btc_union_find nlohmann_json::nlohmann_json)
 
-install(TARGETS btc_combine_blocks btc_combine_address btc_gen_address btc_gen_day_ins)
+install(TARGETS btc_combine_blocks btc_combine_address btc_gen_address btc_gen_day_ins btc_union_find)
