@@ -4,27 +4,41 @@
 #include <cstdint>
 #include <vector>
 #include <filesystem>
+#include <iostream>
 
 namespace utils::btc {
     using BtcSize = BtcId;
 
+    class WeightedQuickUnion;
+
+    std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion);
+
     class WeightedQuickUnion {
     public:
-        WeightedQuickUnion(BtcSize count);
+        friend std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion);
 
-        void connected(BtcId p, BtcId q);
-        BtcId find(BtcId p);
+        WeightedQuickUnion(BtcSize idCount);
+
+        bool connected(BtcId p, BtcId q);
+        BtcId findRoot(BtcId p);
         void connect(BtcId p, BtcId q);
-        void save(const std::filesystem::path& path);
+        void merge(const WeightedQuickUnion& rhs);
+        void save(const std::filesystem::path& path) const;
         void load(const std::filesystem::path& path);
 
-        BtcSize getCount() const {
-            return _count;
+        BtcSize getClusterCount() const {
+            return _clusterCount;
+        }
+
+        bool operator==(const WeightedQuickUnion& rhs) const {
+            return _ids == rhs._ids &&
+                _sizes == rhs._sizes &&
+                _clusterCount == _clusterCount;
         }
 
     private:
         std::vector<BtcId> _ids;
         std::vector<BtcSize> _sizes;
-        BtcSize _count;
+        BtcSize _clusterCount;
     };
 };

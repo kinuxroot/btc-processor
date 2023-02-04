@@ -53,7 +53,7 @@ inline std::vector<BtcId> generateTxInputs(
 
 inline void dumpDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
+    const std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
 );
 
 inline void logUsedMemory();
@@ -246,7 +246,7 @@ inline std::vector<BtcId> generateTxInputs(
 
 void dumpDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
+    const std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
 ) {
     logger.info(fmt::format("Dump day_ins: {}", filePath));
 

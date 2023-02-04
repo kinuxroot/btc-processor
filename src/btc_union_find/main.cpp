@@ -29,32 +29,35 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 using WeightedQuickUnionPtr = std::shared_ptr<utils::btc::WeightedQuickUnion>;
 
+inline BtcId parseMaxId(const char* maxIdArg);
+
+std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
+    BtcId maxId,
+    const std::vector<std::string>& daysList
+);
+
+std::vector<WeightedQuickUnionPtr> mergeQuickUnionsByWorkers(
+    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions
+);
+
 WeightedQuickUnionPtr unionFindTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
     BtcId maxId
 );
 
-void generateTxInputsOfDay(
+void unionFindTxInputsOfDay(
     const std::string& dayDir,
-    const std::map<std::string, BtcId>& address2Id
+    WeightedQuickUnionPtr quickUnion
 );
 
-inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
-    const std::string& dayDir,
-    const json& block,
-    const std::map<std::string, BtcId>& address2Id
+WeightedQuickUnionPtr moveMergeQuickUnions(
+    std::vector<WeightedQuickUnionPtr>* quickUnions
 );
 
-inline std::vector<BtcId> generateTxInputs(
-    const std::string& dayDir,
-    const json& tx,
-    const std::map<std::string, BtcId>& address2Id
-);
-
-inline void dumpDayInputs(
+inline void loadDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
+    std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
 );
 
 inline void logUsedMemory();
@@ -62,8 +65,8 @@ inline void logUsedMemory();
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_union_find <days_dir_list> <id_max_value>\n" << std::endl;
+    if (argc != 4) {
+        std::cerr << "Invalid arguments!\n\nUsage: btc_union_find <days_dir_list> <id_max_value> <result_file>\n" << std::endl;
 
         return EXIT_FAILURE;
     }
@@ -74,32 +77,56 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(BTC_UNION_FIND_WORKER_COUNT, std::thread::hardware_concurrency());
-    logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
-    logger.info(fmt::format("Worker count: {}", workerCount));
+    BtcId maxId = parseMaxId(argv[2]);
+    if (!maxId) {
+        return EXIT_FAILURE;
+    }
+    logUsedMemory();
+    
+    auto quickFindUnions = unionFindByWorkers(maxId, daysList);
+    logUsedMemory();
+
+    auto firstMergedQuickFindUnions = mergeQuickUnionsByWorkers(quickFindUnions);
+    logUsedMemory();
+
+    logger.info("Do final merge");
+
+    WeightedQuickUnionPtr mergedQuickFindUnions = moveMergeQuickUnions(&firstMergedQuickFindUnions);
+    mergedQuickFindUnions->save(argv[3]);
 
     logUsedMemory();
 
+    return EXIT_SUCCESS;
+}
+
+inline BtcId parseMaxId(const char* maxIdArg) {
     BtcId maxId = 0;
     try {
-       maxId = std::stoi(argv[2]);
+        maxId = std::stoi(maxIdArg);
 
-       if (maxId == 0) {
-           logger.error("id_max_value must greater than zero!");
+        if (maxId == 0) {
+            logger.error("id_max_value must greater than zero!");
 
-           return EXIT_FAILURE;
-       }
+            return maxId;
+        }
     }
     catch (const std::exception& e) {
-        logger.error(fmt::format("Can't parse value {} as id: {}", argv[2], e.what()));
+        logger.error(fmt::format("Can't parse value {} as id: {}", maxIdArg, e.what()));
 
-        return EXIT_FAILURE;
+        return maxId;
     }
 
-    std::vector<std::shared_ptr<utils::btc::WeightedQuickUnion>> unionFindIdsOfTasks;
-    //for (int32_t taskIndex = 0; taskIndex != workerCount; ++taskIndex) {
-    //    unionFindIdsOfTasks.push_back(std::make_shared<utils::btc::WeightedQuickUnion>(maxId));
-    //}
+    return maxId;
+}
+
+std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
+    BtcId maxId,
+    const std::vector<std::string>& daysList
+) {
+
+    uint32_t workerCount = std::min(BTC_UNION_FIND_WORKER_COUNT, std::thread::hardware_concurrency());
+    logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
+    logger.info(fmt::format("Worker count: {}", workerCount));
 
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
     uint32_t workerIndex = 0;
@@ -115,28 +142,49 @@ int main(int argc, char* argv[]) {
 
     logUsedMemory();
 
-    std::vector<WeightedQuickUnionPtr> quickFindUnions;
+    auto quickFindUnions = std::make_unique<std::vector<WeightedQuickUnionPtr>>();
     for (auto& task : tasks) {
-        quickFindUnions.push_back(WeightedQuickUnionPtr(std::move(task.get())));
+        quickFindUnions->push_back(WeightedQuickUnionPtr(std::move(task.get())));
     }
 
-    workerIndex = 0;
-    for (auto& quickFindUnion : quickFindUnions) {
-        logger.info(fmt::format("Worker {} result: {} {}", workerIndex, quickFindUnion.use_count(), quickFindUnion->getCount()));
+    return quickFindUnions;
+}
 
-        ++workerIndex;
-    }
+std::vector<WeightedQuickUnionPtr> mergeQuickUnionsByWorkers(
+    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions
+) {
+    uint32_t firstMergeWorkerCount = std::min(BTC_UNION_FIND_INNER_MERGE_WORKER_COUNT, std::thread::hardware_concurrency());
+    logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
+    logger.info(fmt::format("First merge worker count: {}", firstMergeWorkerCount));
+    auto firstMergeQuickFindUnionChunks = utils::generateTaskChunks(*quickFindUnions, firstMergeWorkerCount);
 
     logUsedMemory();
 
-    for (auto& quickFindUnion : quickFindUnions) {
-        logger.info(fmt::format("Worker {} result: {} {}", workerIndex, quickFindUnion.use_count(), quickFindUnion->getCount()));
-        quickFindUnion.reset();
-    }
+    quickFindUnions.release();
 
     logUsedMemory();
 
-    return EXIT_SUCCESS;
+    logger.info("Generating first merge tasks");
+
+    uint32_t firstMergeWorkerIndex = 0;
+    std::vector<std::future<WeightedQuickUnionPtr>> firstMergeTasks;
+    for (auto& taskChunk : firstMergeQuickFindUnionChunks) {
+        firstMergeTasks.push_back(
+            std::async(moveMergeQuickUnions, &taskChunk)
+        );
+
+        ++firstMergeWorkerIndex;
+    }
+    utils::waitForTasks(logger, firstMergeTasks);
+
+    logUsedMemory();
+
+    std::vector<WeightedQuickUnionPtr> firstMergedQuickFindUnions;
+    for (auto& task : firstMergeTasks) {
+        firstMergedQuickFindUnions.push_back(WeightedQuickUnionPtr(std::move(task.get())));
+    }
+
+    return firstMergedQuickFindUnions;
 }
 
 WeightedQuickUnionPtr unionFindTxInputsOfDays(
@@ -146,48 +194,36 @@ WeightedQuickUnionPtr unionFindTxInputsOfDays(
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
-    //for (const auto& dayDir : *daysList) {
-    //    generateTxInputsOfDay(dayDir, *address2Id);
-    //}
+    auto quickUnion = std::make_shared<utils::btc::WeightedQuickUnion>(maxId);
 
-    return std::make_shared<utils::btc::WeightedQuickUnion>(maxId);
+    for (const auto& dayDir : *daysList) {
+        unionFindTxInputsOfDay(dayDir, quickUnion);
+    }
+
+    return quickUnion;
 }
 
-void generateTxInputsOfDay(
+void unionFindTxInputsOfDay(
     const std::string& dayDir,
-    const std::map<std::string, BtcId>& address2Id
+    WeightedQuickUnionPtr quickUnion
 ) {
     try {
-        auto combinedBlocksFilePath = fmt::format("{}/{}", dayDir, "combined-block-list.json");
-        logger.info(fmt::format("Process combined blocks file: {}", dayDir));
-
-        std::ifstream combinedBlocksFile(combinedBlocksFilePath.c_str());
-        if (!combinedBlocksFile.is_open()) {
-            logger.warning(fmt::format("Finished process blocks by date because file not exists: {}", combinedBlocksFilePath));
-            return;
-        }
-
-
-        logUsedMemory();
-        json blocks;
-        combinedBlocksFile >> blocks;
-        logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
-        logUsedMemory();
-
+        auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
         std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
-        for (const auto& block : blocks) {
-            const auto& txInputsOfBlock = generateTxInputsOfBlock(dayDir, block, address2Id);
-            if (txInputsOfBlock.size() > 0) {
-                txInputsOfDay.push_back(txInputsOfBlock);
+        loadDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
+
+        for (const auto& txs : txInputsOfDay) {
+            for (const auto& inputs : txs) {
+                if (inputs.size() <= 1) {
+                    continue;
+                }
+
+                auto firstId = inputs[0];
+                for (const auto input : inputs) {
+                    quickUnion->connect(firstId, input);
+                }
             }
         }
-
-        logger.info(fmt::format("Dump tx inputs of {} blocks by date: {}", txInputsOfDay.size(), dayDir));
-
-        logUsedMemory();
-
-        auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
-        dumpDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
 
@@ -199,85 +235,83 @@ void generateTxInputsOfDay(
     }
 }
 
-inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
-    const std::string& dayDir,
-    const json& block,
-    const std::map<std::string, BtcId>& address2Id
+WeightedQuickUnionPtr moveMergeQuickUnions(
+    std::vector<WeightedQuickUnionPtr>* quickUnions
 ) {
-    std::string blockHash = utils::json::get(block, "hash");
-    std::vector<std::vector<BtcId>> inputIdsOfBlock;
-
-    try {
-        const auto& txs = block["tx"];
-
-        for (const auto& tx : txs) {
-            const auto& inputIds = generateTxInputs(dayDir, tx, address2Id);
-
-            if (inputIds.size() > 0) {
-                inputIdsOfBlock.push_back(inputIds);
-            }
-        }
-    }
-    catch (std::exception& e) {
-        logger.error(fmt::format("Error when process block {}:{}", dayDir, blockHash));
-        logger.error(e.what());
+    if (quickUnions->size() == 0) {
+        return WeightedQuickUnionPtr();
     }
 
-    return inputIdsOfBlock;
+    WeightedQuickUnionPtr finalQuickUnion = (*quickUnions)[0];
+    for (auto quickUnionIt = quickUnions->begin() + 1; quickUnionIt != quickUnions->end(); ++quickUnionIt) {
+        auto& quickUnion = *quickUnionIt;
+
+        finalQuickUnion->merge(*quickUnion);
+
+        // Reset pointer to release memory
+        quickUnion.reset();
+    }
+
+    return finalQuickUnion;
 }
 
-inline std::vector<BtcId> generateTxInputs(
-    const std::string& dayDir,
-    const json& tx,
-    const std::map<std::string, BtcId>& address2Id
-) {
-    std::string txHash = utils::json::get(tx, "hash");
-    std::vector<BtcId> inputIds;
-
-    try {
-        const auto& inputs = utils::json::get(tx, "inputs");
-        for (const auto& input : inputs) {
-            const auto prevOutItem = input.find("prev_out");
-            if (prevOutItem == input.cend()) {
-                continue;
-            }
-            const auto& prevOut = prevOutItem.value();
-
-            const auto addrItem = prevOut.find("addr");
-            if (addrItem != prevOut.cend()) {
-                std::string address = addrItem.value();
-                auto inputIdIt = address2Id.find(address);
-                if (inputIdIt != address2Id.cend()) {
-                    inputIds.push_back(inputIdIt->second);
-                }
-            }
-        }
-    }
-    catch (std::exception& e) {
-        logger.error(fmt::format("Error when process tx {}:{}", dayDir, txHash));
-        logger.error(e.what());
-    }
-
-    if (inputIds.size() > 0) {
-        std::sort(inputIds.begin(), inputIds.end());
-        auto newEnd = std::unique(inputIds.begin(), inputIds.end());
-        if (newEnd != inputIds.end()) {
-            inputIds.erase(newEnd, inputIds.end());
-        }
-    }
-
-    return inputIds;
-}
-
-void dumpDayInputs(
+inline void loadDayInputs(
     const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay
+    std::vector<std::vector<std::vector<BtcId>>>& blocks
 ) {
-    logger.info(fmt::format("Dump day_ins: {}", filePath));
+    logger.info(fmt::format("Load day_ins: {}", filePath));
 
-    json txInputsOfDayJson(txInputsOfDay);
-    std::ofstream txInputsOfDayFile(filePath);
-    txInputsOfDayFile << txInputsOfDayJson;
+    json blocksJson;
+    std::ifstream txInputsOfDayFile(filePath);
+    txInputsOfDayFile >> blocksJson;
+    
+    if (!blocksJson.is_array()) {
+        logger.error(fmt::format("blocks must be array: {}", filePath));
+
+        return;
+    }
+
+    if (blocksJson.size() == 0) {
+        return;
+    }
+
+    blocks.clear();
+    blocks.resize(blocksJson.size());
+
+    size_t blockIndex = 0;
+    for (const auto& txsJson : blocksJson) {
+        if (!txsJson.is_array()) {
+            logger.warning(fmt::format("Txs must be an array: {}", filePath));
+
+            return;
+        }
+
+        auto& txs = blocks[blockIndex];
+        txs.clear();
+        txs.resize(txsJson.size());
+
+        size_t txIndex = 0;
+        for (const auto& inputsJson : txsJson) {
+            if (!inputsJson.is_array()) {
+                logger.warning(fmt::format("Inputs must be an array: {}", filePath));
+
+                return;
+            }
+
+            auto& inputs = txs[txIndex];
+            inputs.clear();
+            inputs.reserve(inputsJson.size());
+
+            for (const auto& inputIdJson : inputsJson) {
+                BtcId inputId = inputIdJson;
+                inputs.push_back(inputId);
+            }
+
+            txIndex++;
+        }
+
+        ++blockIndex;
+    }
 }
 
 inline void logUsedMemory() {
