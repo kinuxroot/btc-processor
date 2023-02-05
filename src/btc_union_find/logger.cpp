@@ -9,7 +9,7 @@ LoggerType& getLogger() {
 
     static auto logger = LoggerFactory<Level::Debug>::createLogger("UnionFind TxInputs", std::make_tuple(
         StreamHandler<Level::Debug>(formatRecord),
-        FileHandler<Level::Debug>::create("logs/btc_gen_day_ins.log", formatRecord)
+        FileHandler<Level::Debug>::create("logs/btc_union_find.log", formatRecord)
     ));
 
     return logger;
