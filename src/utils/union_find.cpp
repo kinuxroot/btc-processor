@@ -64,6 +64,9 @@ namespace utils::btc {
         std::ofstream outputFile(path.c_str(), std::ios::binary);
 
         outputFile.write(reinterpret_cast<const char*>(&_clusterCount), sizeof(_clusterCount));
+
+        BtcId maxId = _ids.size();
+        outputFile.write(reinterpret_cast<const char*>(&maxId), sizeof(BtcId));
         outputFile.write(reinterpret_cast<const char*>(_ids.data()), _ids.size() * sizeof(BtcId));
         outputFile.write(reinterpret_cast<const char*>(_sizes.data()), _sizes.size() * sizeof(BtcSize));
     }
@@ -72,24 +75,32 @@ namespace utils::btc {
         std::ifstream inputFile(path.c_str(), std::ios::binary);
 
         inputFile.read(reinterpret_cast<char*>(&_clusterCount), sizeof(_clusterCount));
+
+        BtcId maxId = 0;
+        inputFile.read(reinterpret_cast<char*>(&maxId), sizeof(BtcId));
+
+        _ids.resize(maxId);
         inputFile.read(reinterpret_cast<char*>(_ids.data()), _ids.size() * sizeof(BtcId));
+        _sizes.resize(maxId);
         inputFile.read(reinterpret_cast<char*>(_sizes.data()), _sizes.size() * sizeof(BtcSize));
     }
 
     std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion) {
         os << fmt::format("Cluster count: {}", quickUnion._clusterCount) << std::endl;
 
+        os << "Ids size:" << quickUnion._ids.size() << std::endl;
         os << "Ids:" << std::endl;
-        for (auto& id : quickUnion._ids) {
-            os << id << " ";
-        }
-        os << std::endl;
+        //for (auto& id : quickUnion._ids) {
+        //    os << id << " ";
+        //}
+        //os << std::endl;
 
+        os << "Sizes size:" << quickUnion._sizes.size() << std::endl;
         os << "Sizes:" << std::endl;
-        for (auto& size : quickUnion._sizes) {
-            os << size << " ";
-        }
-        os << std::endl;
+        //for (auto& size : quickUnion._sizes) {
+        //    os << size << " ";
+        //}
+        //os << std::endl;
 
         return os;
     }
