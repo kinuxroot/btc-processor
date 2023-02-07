@@ -144,6 +144,19 @@ target_sources(
 add_executable_deps(btc_combine_address)
 
 add_executable(
+    btc_convert_blocks
+    src/btc_convert_blocks/main.cpp
+    src/btc_convert_blocks/logger.cpp
+)
+target_sources(
+    btc_convert_blocks
+    PRIVATE
+    include/btc_convert_blocks/logger.h
+)
+add_executable_deps(btc_convert_blocks)
+target_link_libraries(btc_convert_blocks nlohmann_json::nlohmann_json)
+
+add_executable(
     btc_gen_day_ins
     src/btc_gen_day_ins/main.cpp
     src/btc_gen_day_ins/logger.cpp

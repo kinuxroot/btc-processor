@@ -1,5 +1,5 @@
 #include "btc-config.h"
-#include "btc_gen_day_ins/logger.h"
+#include "btc_convert_blocks/logger.h"
 
 #include "logging/Logger.h"
 #include "logging/handlers/FileHandler.h"
@@ -26,30 +26,29 @@ using json = nlohmann::json;
 
 namespace fs = std::filesystem;
 
-void generateTxInputsOfDays(
+void convertBlocksOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
+    const std::map<std::string, BtcId>* address2Id,
     bool skipExisted
 );
 
-void generateTxInputsOfDay(
+void convertBlocksOfDay(
     const std::string& dayDir,
+    const std::map<std::string, BtcId>& address2Id,
     bool skipExisted
 );
 
-inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
+inline std::vector<std::vector<BtcId>> convertAddressesOfBlock(
     const std::string& dayDir,
-    const json& block
+    json& block,
+    const std::map<std::string, BtcId>& address2Id
 );
 
-inline std::vector<BtcId> generateTxInputs(
+inline void convertAddressesOfTx(
     const std::string& dayDir,
-    const json& tx
-);
-
-inline void dumpDayInputs(
-    const char* filePath,
-    const std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
+    json& tx,
+    const std::map<std::string, BtcId>& address2Id
 );
 
 inline void logUsedMemory();
@@ -75,6 +74,13 @@ int main(int argc, char* argv[]) {
 
     logUsedMemory();
 
+    const char* id2AddressFilePath = argv[2];
+    logger.info("Load address2Id...");
+    const auto& address2Id = utils::btc::loadAddress2Id(id2AddressFilePath);
+    logger.info(fmt::format("Loaded address2Id: {} items", address2Id.size()));
+
+    logUsedMemory();
+
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
 
     logUsedMemory();
@@ -89,7 +95,7 @@ int main(int argc, char* argv[]) {
     std::vector<std::future<void>> tasks;
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
-            std::async(generateTxInputsOfDays, workerIndex, &taskChunk, skipExisted)
+            std::async(convertBlocksOfDays, workerIndex, &taskChunk, &address2Id, skipExisted)
         );
 
         ++workerIndex;
@@ -99,57 +105,54 @@ int main(int argc, char* argv[]) {
     return EXIT_SUCCESS;
 }
 
-void generateTxInputsOfDays(
+void convertBlocksOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysList,
+    const std::map<std::string, BtcId>* address2Id,
     bool skipExisted
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     for (const auto& dayDir : *daysList) {
-        generateTxInputsOfDay(dayDir, skipExisted);
+        convertBlocksOfDay(dayDir, *address2Id, skipExisted);
     }
 }
 
-void generateTxInputsOfDay(
+void convertBlocksOfDay(
     const std::string& dayDir,
+    const std::map<std::string, BtcId>& address2Id,
     bool skipExisted
 ) {
     try {
-        auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
-        if (skipExisted && fs::exists(txInputsOfDayFilePath)) {
+        auto convertedBlocksListFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
+        if (skipExisted && fs::exists(convertedBlocksListFilePath)) {
             logger.info(fmt::format("Skip existed blocks by date: {}", dayDir));
 
             return;
         }
 
-        auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
+        auto combinedBlocksFilePath = fmt::format("{}/{}", dayDir, "combined-block-list.json");
         logger.info(fmt::format("Process combined blocks file: {}", dayDir));
 
-        std::ifstream convertedBlocksFile(convertedBlocksFilePath.c_str());
-        if (!convertedBlocksFile.is_open()) {
-            logger.warning(fmt::format("Finished process blocks by date because file not exists: {}", convertedBlocksFilePath));
+        std::ifstream combinedBlocksFile(combinedBlocksFilePath.c_str());
+        if (!combinedBlocksFile.is_open()) {
+            logger.warning(fmt::format("Finished process blocks by date because file not exists: {}", combinedBlocksFilePath));
             return;
         }
 
         logUsedMemory();
         json blocks;
-        convertedBlocksFile >> blocks;
+        combinedBlocksFile >> blocks;
         logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
         logUsedMemory();
 
-        std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
-        for (const auto& block : blocks) {
-            const auto& txInputsOfBlock = generateTxInputsOfBlock(dayDir, block);
-            if (txInputsOfBlock.size() > 0) {
-                txInputsOfDay.push_back(txInputsOfBlock);
-            }
+        for (auto& block : blocks) {
+            convertAddressesOfBlock(dayDir, block, address2Id);
         }
 
-        logger.info(fmt::format("Dump tx inputs of {} blocks by date: {}", txInputsOfDay.size(), dayDir));
-
         logUsedMemory();
-        dumpDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
+        std::ofstream convertedBlocksFile(convertedBlocksListFilePath.c_str());
+        convertedBlocksFile << blocks;
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
 
@@ -161,22 +164,19 @@ void generateTxInputsOfDay(
     }
 }
 
-inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
+inline std::vector<std::vector<BtcId>> convertAddressesOfBlock(
     const std::string& dayDir,
-    const json& block
+    json& block,
+    const std::map<std::string, BtcId>& address2Id
 ) {
     std::string blockHash = utils::json::get(block, "hash");
     std::vector<std::vector<BtcId>> inputIdsOfBlock;
 
     try {
-        const auto& txs = block["tx"];
+        auto& txs = block["tx"];
 
-        for (const auto& tx : txs) {
-            const auto& inputIds = generateTxInputs(dayDir, tx);
-
-            if (inputIds.size() > 0) {
-                inputIdsOfBlock.push_back(inputIds);
-            }
+        for (auto& tx : txs) {
+            convertAddressesOfTx(dayDir, tx, address2Id);
         }
     }
     catch (std::exception& e) {
@@ -187,26 +187,45 @@ inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
     return inputIdsOfBlock;
 }
 
-inline std::vector<BtcId> generateTxInputs(
+inline void convertAddressesOfTx(
     const std::string& dayDir,
-    const json& tx
+    json& tx,
+    const std::map<std::string, BtcId>& address2Id
 ) {
     std::string txHash = utils::json::get(tx, "hash");
-    std::vector<BtcId> inputIds;
 
     try {
-        const auto& inputs = utils::json::get(tx, "inputs");
-        for (const auto& input : inputs) {
-            const auto prevOutItem = input.find("prev_out");
+        auto& inputs = utils::json::get(tx, "inputs");
+        for (auto& input : inputs) {
+            auto prevOutItem = input.find("prev_out");
             if (prevOutItem == input.cend()) {
                 continue;
             }
-            const auto& prevOut = prevOutItem.value();
+            auto& prevOut = prevOutItem.value();
 
-            const auto addrItem = prevOut.find("addr");
+            auto addrItem = prevOut.find("addr");
             if (addrItem != prevOut.cend()) {
-                BtcId addressId = addrItem.value();
-                inputIds.push_back(addressId);
+                std::string address = addrItem.value();
+                auto addressIdItem = address2Id.find(address);
+
+                if (addressIdItem != address2Id.end()) {
+                    BtcId addressId = addressIdItem->second;
+                    addrItem.value() = addressId;
+                }
+            }
+        }
+
+        auto& outputs = utils::json::get(tx, "out");
+        for (auto& output : outputs) {
+            auto addrItem = output.find("addr");
+            if (addrItem != output.cend()) {
+                std::string address = addrItem.value();
+                auto addressIdItem = address2Id.find(address);
+
+                if (addressIdItem != address2Id.end()) {
+                    BtcId addressId = addressIdItem->second;
+                    addrItem.value() = addressId;
+                }
             }
         }
     }
@@ -214,27 +233,6 @@ inline std::vector<BtcId> generateTxInputs(
         logger.error(fmt::format("Error when process tx {}:{}", dayDir, txHash));
         logger.error(e.what());
     }
-
-    if (inputIds.size() > 0) {
-        std::sort(inputIds.begin(), inputIds.end());
-        auto newEnd = std::unique(inputIds.begin(), inputIds.end());
-        if (newEnd != inputIds.end()) {
-            inputIds.erase(newEnd, inputIds.end());
-        }
-    }
-
-    return inputIds;
-}
-
-void dumpDayInputs(
-    const char* filePath,
-    const std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
-) {
-    logger.info(fmt::format("Dump day_ins: {}", filePath));
-
-    json txInputsOfDayJson(txInputsOfDay);
-    std::ofstream txInputsOfDayFile(filePath);
-    txInputsOfDayFile << txInputsOfDayJson;
 }
 
 inline void logUsedMemory() {
