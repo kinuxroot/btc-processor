@@ -7,7 +7,7 @@ LoggerType& getLogger() {
     using logging::handlers::FileHandler;
     using logging::formatters::cstr::formatRecord;
 
-    static auto logger = LoggerFactory<Level::Debug>::createLogger("Generate TxInputs", std::make_tuple(
+    static auto logger = LoggerFactory<Level::Debug>::createLogger("Convert Blocks", std::make_tuple(
         StreamHandler<Level::Debug>(formatRecord),
         FileHandler<Level::Debug>::create("logs/btc_gen_day_ins.log", formatRecord)
     ));
