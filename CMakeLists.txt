@@ -199,6 +199,7 @@ install(TARGETS
     btc_combine_blocks
     btc_combine_address
     btc_gen_address
+    btc_convert_blocks
     btc_gen_day_ins
     btc_union_find
     btc_merge_union_find
