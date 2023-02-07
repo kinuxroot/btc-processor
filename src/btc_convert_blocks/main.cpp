@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(BTC_GEN_DAY_INS_WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(BTC_CONVERT_BLOCKS_WORKER_COUNT, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
