@@ -106,7 +106,7 @@ void getInputBtcIdOfDay(
 
         for (const auto& txs : txInputsOfDay) {
             for (const auto& inputs : txs) {
-                if (inputs.size() <= 1) {
+                if (inputs.size() == 0) {
                     continue;
                 }
 
