@@ -15,4 +15,5 @@ namespace utils::btc {
     void dumpId2Address(const char* filePath, const std::set<std::string>& id2Address);
     std::map<std::string, BtcId> generateAddress2Id(const std::vector<std::string>& id2Address);
     std::map<std::string, BtcId> loadAddress2Id(const char* filePath);
+    void loadDayInputs(const char* filePath, std::vector<std::vector<std::vector<BtcId>>>& blocks);
 }

@@ -195,6 +195,19 @@ target_sources(
 add_executable_deps(btc_merge_union_find)
 target_link_libraries(btc_merge_union_find nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_collect_day_ins
+    src/btc_collect_day_ins/main.cpp
+    src/btc_collect_day_ins/logger.cpp
+)
+target_sources(
+    btc_collect_day_ins
+    PRIVATE
+    include/btc_collect_day_ins/logger.h
+)
+add_executable_deps(btc_collect_day_ins)
+target_link_libraries(btc_collect_day_ins nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -203,4 +216,5 @@ install(TARGETS
     btc_gen_day_ins
     btc_union_find
     btc_merge_union_find
+    btc_collect_day_ins
 )

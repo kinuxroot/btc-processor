@@ -55,11 +55,6 @@ WeightedQuickUnionPtr moveMergeQuickUnions(
     std::vector<WeightedQuickUnionPtr>* quickUnions
 );
 
-inline void loadDayInputs(
-    const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>>& txInputsOfDay
-);
-
 inline void logUsedMemory();
 
 auto& logger = getLogger();
@@ -210,7 +205,7 @@ void unionFindTxInputsOfDay(
     try {
         auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
         std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
-        loadDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
+        utils::btc::loadDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
 
         for (const auto& txs : txInputsOfDay) {
             for (const auto& inputs : txs) {
@@ -253,65 +248,6 @@ WeightedQuickUnionPtr moveMergeQuickUnions(
     }
 
     return finalQuickUnion;
-}
-
-inline void loadDayInputs(
-    const char* filePath,
-    std::vector<std::vector<std::vector<BtcId>>>& blocks
-) {
-    logger.info(fmt::format("Load day_ins: {}", filePath));
-
-    json blocksJson;
-    std::ifstream txInputsOfDayFile(filePath);
-    txInputsOfDayFile >> blocksJson;
-    
-    if (!blocksJson.is_array()) {
-        logger.error(fmt::format("blocks must be array: {}", filePath));
-
-        return;
-    }
-
-    if (blocksJson.size() == 0) {
-        return;
-    }
-
-    blocks.clear();
-    blocks.resize(blocksJson.size());
-
-    size_t blockIndex = 0;
-    for (const auto& txsJson : blocksJson) {
-        if (!txsJson.is_array()) {
-            logger.warning(fmt::format("Txs must be an array: {}", filePath));
-
-            return;
-        }
-
-        auto& txs = blocks[blockIndex];
-        txs.clear();
-        txs.resize(txsJson.size());
-
-        size_t txIndex = 0;
-        for (const auto& inputsJson : txsJson) {
-            if (!inputsJson.is_array()) {
-                logger.warning(fmt::format("Inputs must be an array: {}", filePath));
-
-                return;
-            }
-
-            auto& inputs = txs[txIndex];
-            inputs.clear();
-            inputs.reserve(inputsJson.size());
-
-            for (const auto& inputIdJson : inputsJson) {
-                BtcId inputId = inputIdJson;
-                inputs.push_back(inputId);
-            }
-
-            txIndex++;
-        }
-
-        ++blockIndex;
-    }
 }
 
 inline void logUsedMemory() {

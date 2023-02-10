@@ -1,6 +1,7 @@
 #include "utils/btc_utils.h"
 #include "fmt/format.h"
 
+#include "nlohmann/json.hpp"
 #include <fstream>
 #include <iostream>
 #include <cstdint>
@@ -126,4 +127,64 @@ namespace utils::btc {
 
         return address2Id;
     }
+
+    void loadDayInputs(
+        const char* filePath,
+        std::vector<std::vector<std::vector<BtcId>>>& blocks
+    ) {
+        using nlohmann::json;
+
+        json blocksJson;
+        std::ifstream txInputsOfDayFile(filePath);
+        txInputsOfDayFile >> blocksJson;
+
+        if (!blocksJson.is_array()) {
+            std::cerr << fmt::format("blocks must be array: {}", filePath) << std::endl;
+
+            return;
+        }
+
+        if (blocksJson.size() == 0) {
+            return;
+        }
+
+        blocks.clear();
+        blocks.resize(blocksJson.size());
+
+        size_t blockIndex = 0;
+        for (const auto& txsJson : blocksJson) {
+            if (!txsJson.is_array()) {
+                std::cerr << fmt::format("Txs must be an array: {}", filePath) << std::endl;
+
+                return;
+            }
+
+            auto& txs = blocks[blockIndex];
+            txs.clear();
+            txs.resize(txsJson.size());
+
+            size_t txIndex = 0;
+            for (const auto& inputsJson : txsJson) {
+                if (!inputsJson.is_array()) {
+                    std::cerr << fmt::format("Inputs must be an array: {}", filePath) << std::endl;
+
+                    return;
+                }
+
+                auto& inputs = txs[txIndex];
+                inputs.clear();
+                inputs.reserve(inputsJson.size());
+
+                for (const auto& inputIdJson : inputsJson) {
+                    BtcId inputId = inputIdJson;
+                    inputs.push_back(inputId);
+                }
+
+                txIndex++;
+            }
+
+            ++blockIndex;
+        }
+    }
+
 }
