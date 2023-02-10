@@ -88,6 +88,7 @@ int main(int argc, char* argv[]) {
 
     WeightedQuickUnionPtr mergedQuickFindUnions = moveMergeQuickUnions(&firstMergedQuickFindUnions);
     mergedQuickFindUnions->save(argv[3]);
+    logger.info(fmt::format("Found entities: {}", mergedQuickFindUnions->getClusterCount()));
 
     logUsedMemory();
 
