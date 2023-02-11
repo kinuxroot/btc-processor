@@ -28,27 +28,32 @@ namespace fs = std::filesystem;
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    std::set<std::string>* addresses
+    std::set<std::string>* inputAdresses,
+    std::set<std::string>* outputAdresses
 );
 
 void getUniqueAddressesOfDay(
     const std::string& dayDir,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 );
 
 inline void getUniqueAddressesOfBlock(
     const std::string& dayDir,
     const json& block,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 );
 
 inline void getUniqueAddressesOfTx(
     const std::string& dayDir,
     const json& tx,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 );
 
 inline std::set<std::string> mergeUniqueAddresses(
+    const std::string& label,
     std::vector<std::set<std::string>>& tasksUniqueAddresses
 );
 
@@ -72,21 +77,33 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Worker count: {}", workerCount));
 
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
-    std::vector<std::set<std::string>> tasksUniqueAddresses(workerCount);
+    std::vector<std::set<std::string>> tasksInputUniqueAddresses(workerCount);
+    std::vector<std::set<std::string>> tasksOutputUniqueAddresses(workerCount);
 
     uint32_t workerIndex = 0;
     std::vector<std::future<void>> tasks;
     for (const auto& taskChunk : taskChunks) {
-        auto& taskUniqueeAddresses = tasksUniqueAddresses[workerIndex];
+        auto& taskInputUniqueAddresses = tasksInputUniqueAddresses[workerIndex];
+        auto& taskOutputUniqueAddresses = tasksOutputUniqueAddresses[workerIndex];
         tasks.push_back(
-            std::async(getUniqueAddressesOfDays, workerIndex, &taskChunk, &taskUniqueeAddresses)
+            std::async(
+                getUniqueAddressesOfDays,
+                workerIndex,
+                &taskChunk,
+                &taskInputUniqueAddresses,
+                &taskOutputUniqueAddresses
+            )
         );
 
         ++ workerIndex;
     }
     utils::waitForTasks(logger, tasks);
 
-    const auto& id2Address = mergeUniqueAddresses(tasksUniqueAddresses);
+    std::vector<std::set<std::string>> allUniqueAddresses;
+    allUniqueAddresses.push_back(mergeUniqueAddresses("input", tasksInputUniqueAddresses));
+    allUniqueAddresses.push_back(mergeUniqueAddresses("output", tasksOutputUniqueAddresses));
+
+    const auto& id2Address = mergeUniqueAddresses("final", allUniqueAddresses);
 
     const char* id2AddressFilePath = argv[2];
     utils::btc::dumpId2Address(id2AddressFilePath, id2Address);
@@ -97,12 +114,13 @@ int main(int argc, char* argv[]) {
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysList,
-    std::set<std::string>* addresses
+    std::set<std::string>* inputAdresses,
+    std::set<std::string>* outputAdresses
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     for (const auto& dayDir : *daysList) {
-        getUniqueAddressesOfDay(dayDir, *addresses);
+        getUniqueAddressesOfDay(dayDir, *inputAdresses, *outputAdresses);
         auto usedMemory = utils::mem::getAllocatedMemory();
         logger.debug(fmt::format("Used memory: {}GB {}MB", usedMemory / 1024 / 1024, usedMemory / 1024));
     }
@@ -110,7 +128,8 @@ void getUniqueAddressesOfDays(
 
 void getUniqueAddressesOfDay(
     const std::string& dayDir,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 ) {
     try {
         auto combinedBlocksFilePath = fmt::format("{}/{}", dayDir, "combined-block-list.json");
@@ -127,7 +146,7 @@ void getUniqueAddressesOfDay(
         logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
 
         for (const auto& block : blocks) {
-            getUniqueAddressesOfBlock(dayDir, block, addresses);
+            getUniqueAddressesOfBlock(dayDir, block, inputAdresses, outputAdresses);
         }
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
@@ -141,7 +160,8 @@ void getUniqueAddressesOfDay(
 inline void getUniqueAddressesOfBlock(
     const std::string& dayDir,
     const json& block,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 ) {
     std::string blockHash = utils::json::get(block, "hash");
 
@@ -149,7 +169,7 @@ inline void getUniqueAddressesOfBlock(
         const auto& txs = block["tx"];
 
         for (const auto& tx : txs) {
-            getUniqueAddressesOfTx(dayDir, tx, addresses);
+            getUniqueAddressesOfTx(dayDir, tx, inputAdresses, outputAdresses);
         }
     }
     catch (std::exception& e) {
@@ -161,7 +181,8 @@ inline void getUniqueAddressesOfBlock(
 inline void getUniqueAddressesOfTx(
     const std::string& dayDir,
     const json& tx,
-    std::set<std::string>& addresses
+    std::set<std::string>& inputAdresses,
+    std::set<std::string>& outputAdresses
 ) {
     std::string txHash = utils::json::get(tx, "hash");
 
@@ -176,7 +197,7 @@ inline void getUniqueAddressesOfTx(
 
             const auto addrItem = prevOut.find("addr");
             if (addrItem != prevOut.cend()) {
-                addresses.insert(addrItem.value());
+                inputAdresses.insert(addrItem.value());
             }
         }
 
@@ -184,7 +205,7 @@ inline void getUniqueAddressesOfTx(
         for (const auto& output : outputs) {
             const auto addrItem = output.find("addr");
             if (addrItem != output.cend()) {
-                addresses.insert(addrItem.value());
+                outputAdresses.insert(addrItem.value());
             }
         }
     }
@@ -195,6 +216,7 @@ inline void getUniqueAddressesOfTx(
 }
 
 inline std::set<std::string> mergeUniqueAddresses(
+    const std::string& label,
     std::vector<std::set<std::string>>& tasksUniqueAddresses
 ) {
     std::set<std::string> finalAddressSet;
@@ -208,8 +230,8 @@ inline std::set<std::string> mergeUniqueAddresses(
         tasksUniqueAddresses.pop_back();
     }
 
-    logger.info(fmt::format("Final unique addresses: {}/{}", finalAddressSet.size(), totalAddressCount));
-    logger.info(fmt::format("Remove duplicated addresses: {}", totalAddressCount - finalAddressSet.size()));
+    logger.info(fmt::format("Final unique addresses {}: {}/{}", label, finalAddressSet.size(), totalAddressCount));
+    logger.info(fmt::format("Remove duplicated addresses {}: {}", label, totalAddressCount - finalAddressSet.size()));
 
     return finalAddressSet;
 }
