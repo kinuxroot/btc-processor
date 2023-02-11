@@ -274,8 +274,8 @@ void calculateBalanceListOfTx(
             }
             BtcId addressId = addrItem.value();
 
-            const auto valueItem = input.find("value");
-            if (valueItem == input.cend()) {
+            const auto valueItem = prevOut.find("value");
+            if (valueItem == prevOut.cend()) {
                 continue;
             }
             int64_t value = valueItem.value();
@@ -325,6 +325,8 @@ void dumpBalanceList(
     const std::string& outputFilePath,
     const BalanceList& balanceList
 ) {
+    logger.info(fmt::format("Dump balance to: {}", outputFilePath));
+
     std::ofstream outputFile(outputFilePath.c_str());
 
     BtcId btcId = 0;
