@@ -90,18 +90,28 @@ namespace utils::btc {
 
         os << "Ids size:" << quickUnion._ids.size() << std::endl;
         os << "Ids:" << std::endl;
-        //for (auto& id : quickUnion._ids) {
-        //    os << id << " ";
-        //}
-        //os << std::endl;
 
         os << "Sizes size:" << quickUnion._sizes.size() << std::endl;
         os << "Sizes:" << std::endl;
-        //for (auto& size : quickUnion._sizes) {
-        //    os << size << " ";
-        //}
-        //os << std::endl;
 
         return os;
     }
+
+    WeightedQuickUnionClusters::WeightedQuickUnionClusters(const WeightedQuickUnion& quickUnion) :
+        _quickUnion(quickUnion) {}
+
+    void WeightedQuickUnionClusters::forEach(ForEachFunc handler) const {
+        BtcSize currentId = 0;
+
+        for (auto currentParent : _quickUnion._ids) {
+            auto currentSize = _quickUnion._sizes[currentId];
+
+            if (currentParent == currentId) {
+                handler(currentId, currentSize);
+            }
+
+            ++currentId;
+        }
+    }
+
 }
