@@ -327,8 +327,11 @@ void dumpBalanceList(
 ) {
     std::ofstream outputFile(outputFilePath.c_str());
 
+    BtcId btcId = 0;
     for (auto balance : balanceList) {
-        outputFile << balance << std::endl;
+        outputFile << btcId << "," << balance << std::endl;
+
+        ++btcId;
     }
 }
 
