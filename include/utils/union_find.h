@@ -5,6 +5,7 @@
 #include <vector>
 #include <filesystem>
 #include <iostream>
+#include <functional>
 
 namespace utils::btc {
     using BtcSize = BtcId;
@@ -12,10 +13,13 @@ namespace utils::btc {
     class WeightedQuickUnion;
 
     std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion);
+    
+    class WeightedQuickUnionClusters;
 
     class WeightedQuickUnion {
     public:
         friend std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion);
+        friend class WeightedQuickUnionClusters;
 
         WeightedQuickUnion(BtcSize idCount);
 
@@ -30,6 +34,10 @@ namespace utils::btc {
             return _clusterCount;
         }
 
+        BtcSize getSize() const {
+            return _ids.size();
+        }
+
         bool operator==(const WeightedQuickUnion& rhs) const {
             return _ids == rhs._ids &&
                 _sizes == rhs._sizes &&
@@ -40,5 +48,17 @@ namespace utils::btc {
         std::vector<BtcId> _ids;
         std::vector<BtcSize> _sizes;
         BtcSize _clusterCount;
+    };
+
+    class WeightedQuickUnionClusters {
+    public:
+        using ForEachFunc = std::function<void(BtcId, BtcSize)>;
+
+        WeightedQuickUnionClusters(const WeightedQuickUnion& quickUnion);
+
+        void forEach(ForEachFunc handler) const;
+
+    private:
+        const WeightedQuickUnion& _quickUnion;
     };
 };
