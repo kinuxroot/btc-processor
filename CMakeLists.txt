@@ -230,4 +230,5 @@ install(TARGETS
     btc_union_find
     btc_merge_union_find
     btc_collect_day_ins
+    btc_export_union_find
 )
