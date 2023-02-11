@@ -221,6 +221,19 @@ target_sources(
 add_executable_deps(btc_export_union_find)
 target_link_libraries(btc_export_union_find nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_gen_address_balance
+    src/btc_gen_address_balance/main.cpp
+    src/btc_gen_address_balance/logger.cpp
+)
+target_sources(
+    btc_gen_address_balance
+    PRIVATE
+    include/btc_gen_address_balance/logger.h
+)
+add_executable_deps(btc_gen_address_balance)
+target_link_libraries(btc_gen_address_balance nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
