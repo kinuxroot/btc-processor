@@ -61,6 +61,11 @@ void mergeBalanceList(
     const BalanceList& src
 );
 
+std::size_t loadBalanceList(
+    const std::string& inputFilePath,
+    BalanceList& balanceList
+);
+
 void dumpBalanceList(
     const std::string& outputFilePath,
     const BalanceList& balanceList
@@ -106,6 +111,15 @@ int main(int argc, char* argv[]) {
         const auto& year = yearDaysList.first;
 
         logger.info(fmt::format("\n\n======================== Process year: {} ========================\n", year));
+        auto outputFilePath = fmt::format("{}/{}.list", outputBaseDirPath, year);
+        if (fs::exists(outputFilePath)) {
+            logger.info(fmt::format("Load existed file", year));
+            auto loadedCount = loadBalanceList(outputFilePath, balanceList);
+            logger.info(fmt::format("Loaded {} records of year {}", loadedCount, year));
+
+            continue;
+        }
+
         const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(
             yearDaysList.second, workerCount
         );
@@ -127,7 +141,6 @@ int main(int argc, char* argv[]) {
             taskResult.reset();
         }
 
-        auto outputFilePath = fmt::format("{}/{}.list", outputBaseDirPath, year);
         dumpBalanceList(outputFilePath, balanceList);
     }
 
@@ -319,6 +332,36 @@ void mergeBalanceList(
         ++destIt;
         ++srcIt;
     }
+}
+
+std::size_t loadBalanceList(
+    const std::string& inputFilePath,
+    BalanceList& balanceList
+) {
+    logger.info(fmt::format("Load balance from: {}", inputFilePath));
+    std::ifstream inputFile(inputFilePath.c_str());
+    std::size_t loadedCount = 0;
+
+    while (inputFile) {
+        std::string line;
+        std::getline(inputFile, line);
+
+        auto seperatorPos = line.find(',');
+        if (seperatorPos == std::string::npos) {
+            continue;
+        }
+
+        std::string btcIdString = line.substr(0, seperatorPos);
+        std::string balanceString = line.substr(seperatorPos + 1);
+
+        BtcId btcId = std::stoll(btcIdString);
+        int64_t btcValue = std::stoll(balanceString);
+
+        balanceList[btcId] = btcValue;
+        ++ loadedCount;
+    }
+
+    return loadedCount;
 }
 
 void dumpBalanceList(
