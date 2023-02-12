@@ -109,6 +109,7 @@ int main(int argc, char* argv[]) {
     const char* startYear = nullptr;
     if (argc == 5) {
         startYear = argv[4];
+        logger.info(fmt::format("Using start year: {}", startYear));
     }
 
     BalanceList balanceList(maxId, 0);
@@ -116,8 +117,10 @@ int main(int argc, char* argv[]) {
         const auto& year = yearDaysList.first;
 
         // 从起始年份开始计算
-        if (startYear && year == startYear) {
-            continue;
+        if (startYear) {
+            if (year != startYear) {
+                continue;
+            }
         }
         else {
             startYear = nullptr;
