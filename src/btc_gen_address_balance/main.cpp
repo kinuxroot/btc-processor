@@ -151,6 +151,7 @@ int main(int argc, char* argv[]) {
             ++workerIndex;
         }
 
+        logger.info("Merge balance lists");
         for (auto& task : tasks) {
             BalanceListPtr taskResult = std::move(task.get());
             mergeBalanceList(balanceList, *taskResult);
@@ -394,6 +395,10 @@ void dumpBalanceList(
         outputFile << btcId << "," << balance << std::endl;
 
         ++btcId;
+
+        if (btcId % 100000 == 0) {
+            logger.info(fmt::format("Dump balance id: {}", btcId));
+        }
     }
 }
 
