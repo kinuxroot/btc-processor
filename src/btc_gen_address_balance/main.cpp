@@ -76,9 +76,9 @@ inline void logUsedMemory();
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) {
+    if (argc < 4) {
         std::cerr << "Invalid arguments!\n\n"
-            "Usage: btc_gen_address_balance <days_dir_list> <id_max_value> <output_base_dir>\n" 
+            "Usage: btc_gen_address_balance <days_dir_list> <id_max_value> <output_base_dir> <start_year>\n" 
             << std::endl;
 
         return EXIT_FAILURE;
@@ -106,9 +106,22 @@ int main(int argc, char* argv[]) {
     const char* outputBaseDirPath = argv[3];
     fs::create_directories(outputBaseDirPath);
 
+    const char* startYear = nullptr;
+    if (argc == 5) {
+        startYear = argv[4];
+    }
+
     BalanceList balanceList(maxId, 0);
     for (const auto& yearDaysList : groupedDaysList) {
         const auto& year = yearDaysList.first;
+
+        // 从起始年份开始计算
+        if (startYear && year == startYear) {
+            continue;
+        }
+        else {
+            startYear = nullptr;
+        }
 
         logger.info(fmt::format("\n\n======================== Process year: {} ========================\n", year));
         auto outputFilePath = fmt::format("{}/{}.list", outputBaseDirPath, year);
@@ -116,6 +129,7 @@ int main(int argc, char* argv[]) {
             logger.info(fmt::format("Load existed file", year));
             auto loadedCount = loadBalanceList(outputFilePath, balanceList);
             logger.info(fmt::format("Loaded {} records of year {}", loadedCount, year));
+            logUsedMemory();
 
             continue;
         }
