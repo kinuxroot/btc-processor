@@ -85,6 +85,23 @@ namespace utils::btc {
         inputFile.read(reinterpret_cast<char*>(_sizes.data()), _sizes.size() * sizeof(BtcSize));
     }
 
+    void WeightedQuickUnion::resize(BtcSize newSize) {
+        auto originalSize = getSize();
+        if (originalSize >= newSize) {
+            return;
+        }
+
+        _ids.resize(newSize);
+        _sizes.resize(newSize);
+
+        _clusterCount += newSize - originalSize;
+
+        for (BtcId currentId = originalSize; originalSize < newSize; ++originalSize) {
+            _ids[currentId] = currentId;
+            _sizes[currentId] = 1;
+        }
+    }
+
     std::ostream& operator<<(std::ostream& os, const WeightedQuickUnion& quickUnion) {
         os << fmt::format("Cluster count: {}", quickUnion._clusterCount) << std::endl;
 

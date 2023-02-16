@@ -29,6 +29,7 @@ namespace utils::btc {
         void merge(const WeightedQuickUnion& rhs);
         void save(const std::filesystem::path& path) const;
         void load(const std::filesystem::path& path);
+        void resize(BtcSize newSize);
 
         BtcSize getClusterCount() const {
             return _clusterCount;

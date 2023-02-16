@@ -247,6 +247,19 @@ target_sources(
 add_executable_deps(btc_merge_address_balance)
 target_link_libraries(btc_merge_address_balance nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_convert_exchanges
+    src/btc_convert_exchanges/main.cpp
+    src/btc_convert_exchanges/logger.cpp
+)
+target_sources(
+    btc_convert_exchanges
+    PRIVATE
+    include/btc_convert_exchanges/logger.h
+)
+add_executable_deps(btc_convert_exchanges)
+target_link_libraries(btc_convert_exchanges nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -259,4 +272,5 @@ install(TARGETS
     btc_export_union_find
     btc_gen_address_balance
     btc_merge_address_balance
+    btc_convert_exchanges
 )
