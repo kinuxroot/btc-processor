@@ -260,6 +260,32 @@ target_sources(
 add_executable_deps(btc_convert_exchanges)
 target_link_libraries(btc_convert_exchanges nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_uf_exchanges
+    src/btc_uf_exchanges/main.cpp
+    src/btc_uf_exchanges/logger.cpp
+)
+target_sources(
+    btc_uf_exchanges
+    PRIVATE
+    include/btc_uf_exchanges/logger.h
+)
+add_executable_deps(btc_uf_exchanges)
+target_link_libraries(btc_uf_exchanges nlohmann_json::nlohmann_json)
+
+add_executable(
+    btc_collect_miner_tx
+    src/btc_collect_miner_tx/main.cpp
+    src/btc_collect_miner_tx/logger.cpp
+)
+target_sources(
+    btc_collect_miner_tx
+    PRIVATE
+    include/btc_collect_miner_tx/logger.h
+)
+add_executable_deps(btc_collect_miner_tx)
+target_link_libraries(btc_collect_miner_tx nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -273,4 +299,5 @@ install(TARGETS
     btc_gen_address_balance
     btc_merge_address_balance
     btc_convert_exchanges
+    btc_uf_exchanges
 )

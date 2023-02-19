@@ -1,5 +1,5 @@
 #include "btc-config.h"
-#include "btc_convert_exchanges/logger.h"
+#include "btc_uf_exchanges/logger.h"
 
 #include "logging/Logger.h"
 #include "logging/handlers/FileHandler.h"
@@ -38,81 +38,70 @@ inline void logUsedMemory();
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_convert_exchanges <id2addr> <ex_addrs> <ex_addr_ids> <uf>\n" << std::endl;
+    if (argc < 4 || argc == 5) {
+        std::cerr << "Invalid arguments!\n\nUsage: btc_uf_exchanges <uf> <ex_ids> <ex_uf_ids> <id2addr> <ex_uf_addr>\n" << std::endl;
 
         return EXIT_FAILURE;
     }
-
-    const char* id2AddressFilePath = argv[1];
-    logger.info("Load address2Id...");
-    auto address2Id = utils::btc::loadAddress2Id(id2AddressFilePath);
-    logger.info(fmt::format("Loaded address2Id: {} items", address2Id.size()));
-
-    const char* exchangeAddressesFilePath = argv[2];
-    std::vector<std::string> exchangeAddresses = utils::readLines(exchangeAddressesFilePath);
+    
+    const char* ufFilePath = argv[1];
+    logger.info(fmt::format("Load union find file from {}", ufFilePath));
+    utils::btc::WeightedQuickUnion uf(1);
+    uf.load(ufFilePath);
 
     logUsedMemory();
 
-    std::vector<BtcId> addressIds;
-    logger.info("Convert exchange addresses to ids");
-    convertAddress2Ids(exchangeAddresses, addressIds, address2Id, id2AddressFilePath);
-    logger.info(fmt::format("Converted {} address; total address count: {}", addressIds.size(), address2Id.size()));
+    logger.info("Loading exchange address ids");
+    const char* exchangeAddressIdsFilePath = argv[2];
+    std::vector<BtcId> addressIds = utils::readLines<BtcId>(
+        exchangeAddressIdsFilePath,
+        [](const std::string& line) -> BtcId {
+            return std::stoi(line);
+        }
+    );
 
-    const char* exchangeAddressIdsFilePath = argv[3];
-    logger.info(fmt::format("Dump exchange address ids to {}", exchangeAddressIdsFilePath));
-    utils::writeLines(exchangeAddressIdsFilePath, addressIds);
+    logUsedMemory();
 
-    if (argc == 5) {
-        const char* ufFilePath = argv[4];
-        logger.info(fmt::format("Expand union find file from {}", ufFilePath));
+    logger.info("Generating exchange root address ids");
 
-        utils::btc::WeightedQuickUnion uf(1);
-        uf.load(ufFilePath);
+    std::set<BtcId> exchangeRootAddresseIds;
+    for (BtcId addressId : addressIds) {
+        exchangeRootAddresseIds.insert(uf.findRoot(addressId));
+    }
 
-        auto originalSize = uf.getSize();
-        uf.resize(address2Id.size());
-        auto expandedSize = uf.getSize();
+    logger.info("Generating all address ids by union find");
 
-        logger.info(fmt::format(
-            "Expand union find from {} to {}, expanded {}", 
-            originalSize, expandedSize, expandedSize - originalSize
-        ));
+    std::vector<BtcId> unionFoundExchangedAddressIds;
+    auto maxId = uf.getSize();
+    for (BtcId currentId = 0; currentId < maxId; ++currentId) {
+        BtcId currentRoot = uf.findRoot(currentId);
+        if (exchangeRootAddresseIds.contains(currentRoot)) {
+            unionFoundExchangedAddressIds.push_back(currentId);
+        }
+    }
 
-        uf.save(ufFilePath);
+    const char* unionFoundExchangedAddressIdsFilePath = argv[3];
+    logger.info(fmt::format("Writing {} address ids by union find", unionFoundExchangedAddressIds.size()));
+    utils::writeLines(unionFoundExchangedAddressIdsFilePath, unionFoundExchangedAddressIds);
+
+    if (argc > 5) {
+        const char* address2IdFilePath = argv[4];
+        logger.info("Load id2Address...");
+        auto id2Address = utils::btc::loadId2Address(address2IdFilePath);
+        logger.info(fmt::format("Loaded id2Address: {} items", id2Address.size()));
+
+        const char* unionFoundExchangedAddressesFilePath = argv[5];
+        std::vector<std::string> unionFoundExchangedAddresses;
+        for (BtcId addressId : unionFoundExchangedAddressIds) {
+            const std::string exchangeAddress = id2Address[addressId];
+            unionFoundExchangedAddresses.push_back(exchangeAddress);
+        }
+
+        utils::writeLines(unionFoundExchangedAddressesFilePath, unionFoundExchangedAddresses);
+        logger.info(fmt::format("Writing {} addresses by union find", unionFoundExchangedAddresses.size()));
     }
     
     return EXIT_SUCCESS;
-}
-
-std::vector<BtcId> convertAddress2Ids(
-    const std::vector<std::string> addresses,
-    std::vector<BtcId>& addressIds,
-    std::map<std::string, BtcId>& address2Id,
-    const std::string& appendFilePath
-) {
-    std::ofstream addressIdFile(appendFilePath.c_str(), std::ios::app);
-
-    BtcId maxId = address2Id.size();
-    for (const auto& address : addresses) {
-        auto addressIt = address2Id.find(address);
-        if (addressIt == address2Id.end()) {
-            addressIdFile << address << std::endl;
-
-            address2Id[address] = maxId;
-            addressIds.push_back(maxId);
-
-            logger.info(fmt::format("Append new address: {}/{}", address, maxId));
-
-            maxId = address2Id.size();
-        }
-        else {
-            addressIds.push_back(addressIt->second);
-            logger.info(fmt::format("Found address: {}/{}", address, maxId));
-        }
-    }
-
-    return addressIds;
 }
 
 inline void logUsedMemory() {
