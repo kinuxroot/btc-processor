@@ -300,4 +300,5 @@ install(TARGETS
     btc_merge_address_balance
     btc_convert_exchanges
     btc_uf_exchanges
+    btc_collect_miner_tx
 )
