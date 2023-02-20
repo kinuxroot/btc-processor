@@ -217,6 +217,9 @@ void generateMinerTxFlowsOfTx(
                 continue;
             }
             const auto& prevOut = prevOutItem.value();
+            if (prevOut.is_null()) {
+                continue;
+            }
 
             const auto addrItem = prevOut.find("addr");
             if (addrItem == prevOut.cend()) {
@@ -266,6 +269,10 @@ void generateMinerTxFlowsOfTx(
             minerTxInputs.push_back(minerTxInput);
         }
 
+        if (!minerTxInputs.size()) {
+            return;
+        }
+
         const auto& outputs = utils::json::get(tx, "out");
         if (!outputs.is_array()) {
             throw std::invalid_argument("outputs must be an array");
@@ -276,6 +283,10 @@ void generateMinerTxFlowsOfTx(
         }
 
         for (const auto& output : outputs) {
+            if (output.find("addr") == output.end() || !output["spent"]) {
+                continue;
+            }
+
             for (const auto& minerTxInput : minerTxInputs) {
                 json minerTxFlow = {
                     { "prev_out_tx_index", minerTxInput["prev_out_tx_index"] },
@@ -388,10 +399,10 @@ void dumpMinerTxFlows(
 
     logger.info(fmt::format("Dump miner tx flows: {}", filePath));
 
-    for (const std::string& columnName : COLUMNS) {
-        minerTxFlowsFile << columnName << ",";
-    }
-    minerTxFlowsFile << std::endl;
+    //for (const std::string& columnName : COLUMNS) {
+    //    minerTxFlowsFile << columnName << ",";
+    //}
+    //minerTxFlowsFile << std::endl;
 
     for (const auto& minerTxFlow : minerTxFlows) {
         for (const std::string& columnName : COLUMNS) {
