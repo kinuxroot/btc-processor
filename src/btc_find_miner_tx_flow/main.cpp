@@ -28,6 +28,17 @@ using MinerTxsPtr = std::unique_ptr<MinerTxs>;
 
 namespace fs = std::filesystem;
 
+struct MinerTxFlow {
+    uint64_t prev_out_tx_index;
+    BtcId prev_out_tx_addr;
+    int64_t input_value;
+    BtcId output_addr;
+    int64_t output_value;
+    uint64_t output_tx_index;
+    std::string output_script;
+    std::size_t output_n;
+};
+
 void generateMinerTxFlowsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
@@ -42,14 +53,10 @@ void generateMinerTxFlowsOfDay(
 void generateMinerTxFlowsOfBlock(
     const std::string& dayDir,
     const json& block,
-    std::vector<json>& minerTxFlows,
+    std::vector<MinerTxFlow>& minerTxFlows,
     const MinerTxs& minerTxs,
     const std::string& filePath,
     std::size_t blockOffset
-);
-
-MinerTxsPtr mergeTxsList(
-    std::vector<MinerTxsPtr>& minerTxsList
 );
 
 MinerTxsPtr loadMinerTxs(const char* filePath);
@@ -57,13 +64,13 @@ MinerTxsPtr loadMinerTxs(const char* filePath);
 void generateMinerTxFlowsOfTx(
     const std::string& dayDir,
     const json& tx,
-    std::vector<json>& minerTxFlows,
+    std::vector<MinerTxFlow>& minerTxFlows,
     const MinerTxs& minerTxs
 );
 
 void dumpMinerTxFlows(
     const std::string& filePath,
-    const std::vector<json>& minerTxFlows
+    const std::vector<MinerTxFlow>& minerTxFlows
 );
 
 inline void logUsedMemory();
@@ -142,7 +149,7 @@ void generateMinerTxFlowsOfDay(
         logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
         logUsedMemory();
 
-        std::vector<json> minerTxFlows;
+        std::vector<MinerTxFlow> minerTxFlows;
         std::size_t blockOffset = 0;
         for (const auto& block : blocks) {
             generateMinerTxFlowsOfBlock(dayDir, block, minerTxFlows, minerTxs, convertedBlocksFilePath, blockOffset);
@@ -165,7 +172,7 @@ void generateMinerTxFlowsOfDay(
 void generateMinerTxFlowsOfBlock(
     const std::string& dayDir,
     const json& block,
-    std::vector<json>& minerTxFlows,
+    std::vector<MinerTxFlow>& minerTxFlows,
     const MinerTxs& minerTxs,
     const std::string& filePath,
     std::size_t blockOffset
@@ -195,7 +202,7 @@ void generateMinerTxFlowsOfBlock(
 void generateMinerTxFlowsOfTx(
     const std::string& dayDir,
     const json& tx,
-    std::vector<json>& minerTxFlows,
+    std::vector<MinerTxFlow>& minerTxFlows,
     const MinerTxs& minerTxs
 ) {
     std::string txHash = utils::json::get(tx, "hash");
@@ -288,18 +295,16 @@ void generateMinerTxFlowsOfTx(
             }
 
             for (const auto& minerTxInput : minerTxInputs) {
-                json minerTxFlow = {
-                    { "prev_out_tx_index", minerTxInput["prev_out_tx_index"] },
-                    { "prev_out_tx_addr", minerTxInput["prev_out_tx_addr"] },
-                    { "input_value", minerTxInput["input_value"] },
-                    { "output_addr", output["addr"] },
-                    { "output_value", output["value"] },
-                    { "output_tx_index", output["tx_index"] },
-                    { "output_script", output["script"] },
-                    { "output_n", output["n"] },
-                };
-
-                minerTxFlows.push_back(minerTxFlow);
+                minerTxFlows.push_back({
+                    .prev_out_tx_index = minerTxInput["prev_out_tx_index"],
+                    .prev_out_tx_addr = minerTxInput["prev_out_tx_addr"],
+                    .input_value = minerTxInput["input_value"],
+                    .output_addr = output["addr"],
+                    .output_value = output["value"],
+                    .output_tx_index = output["tx_index"],
+                    .output_script = output["script"],
+                    .output_n = output["n"],
+                });
             }
         }
     }
@@ -309,28 +314,6 @@ void generateMinerTxFlowsOfTx(
 
         std::rethrow_exception(std::current_exception());
     }
-}
-
-MinerTxsPtr mergeTxsList(
-    std::vector<MinerTxsPtr>& minerTxsList
-) {
-    MinerTxsPtr mergedMinerTxs;
-
-    while (minerTxsList.size()) {
-        auto& currentMinerTxs = minerTxsList.back();
-        if (!mergedMinerTxs) {
-            mergedMinerTxs = std::move(currentMinerTxs);
-        }
-        else {
-            for (auto& minerTx : *currentMinerTxs) {
-                mergedMinerTxs->insert(minerTx);
-            }
-        }
-
-        minerTxsList.pop_back();
-    }
-
-    return mergedMinerTxs;
 }
 
 MinerTxsPtr loadMinerTxs(const char* filePath) {
@@ -377,43 +360,25 @@ MinerTxsPtr loadMinerTxs(const char* filePath) {
 
 void dumpMinerTxFlows(
     const std::string& filePath,
-    const std::vector<json>& minerTxFlows
+    const std::vector<MinerTxFlow>& minerTxFlows
 ) {
     std::ofstream minerTxFlowsFile(filePath.c_str());
 
-    static const std::vector<std::string> COLUMNS {
-        "prev_out_tx_index",
-        "prev_out_tx_addr",
-        "input_value",
-        "output_addr",
-        "output_value",
-        "output_tx_index",
-        "output_script",
-        "output_n",
-    };
-
-    static const std::set<std::string> NUMBER_COLUMNS{
-        "input_value",
-        "output_value",
-    };
-
     logger.info(fmt::format("Dump miner tx flows: {}", filePath));
 
-    //for (const std::string& columnName : COLUMNS) {
-    //    minerTxFlowsFile << columnName << ",";
-    //}
-    //minerTxFlowsFile << std::endl;
-
     for (const auto& minerTxFlow : minerTxFlows) {
-        for (const std::string& columnName : COLUMNS) {
-            if (NUMBER_COLUMNS.contains(columnName)) {
-                minerTxFlowsFile << minerTxFlow[columnName] << ",";
-            }
-            else {
-                minerTxFlowsFile << minerTxFlow[columnName] << ",";
-            }
-        }
-        minerTxFlowsFile << std::endl;
+        std::string line = fmt::format("{},{},{},{},{},{},{},{}",
+            minerTxFlow.prev_out_tx_index,
+            minerTxFlow.prev_out_tx_addr,
+            minerTxFlow.input_value,
+            minerTxFlow.output_addr,
+            minerTxFlow.output_value,
+            minerTxFlow.output_tx_index,
+            minerTxFlow.output_script,
+            minerTxFlow.output_n
+        );
+
+        minerTxFlowsFile << line << std::endl;
     }
 }
 
