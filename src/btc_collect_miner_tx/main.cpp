@@ -178,15 +178,19 @@ void generateMinerTxOfBlock(
         }
 
         const auto& firstTx = txs.at(0);
-        auto minerTx = toMinerTx(dayDir, firstTx);
-        minerTx["day"] = filePath;
-        minerTx["block"] = {
+        json txOutputs = firstTx["out"];
+
+        json txIndexMinerTx;
+        txIndexMinerTx["day"] = filePath;
+        txIndexMinerTx["block"] = {
             {"hash", block["hash"]},
             {"block_index", block["block_index"]},
             {"offset", blockOffset},
         };
+        txIndexMinerTx["outputs"] = txOutputs;
 
-        minerTxs[minerTx["tx_index"]] = minerTx;
+        uint64_t txIndex = firstTx["tx_index"];
+        minerTxs[txIndex] = txIndexMinerTx;
     }
     catch (std::exception& e) {
         logger.error(fmt::format("Error when process block {}:{}", dayDir, blockHash));
@@ -210,7 +214,7 @@ json toMinerTx(
             throw std::invalid_argument("outputs must have elements");
         }
 
-        return outputs[0];
+        return outputs;
     }
     catch (std::exception& e) {
         logger.error(fmt::format("Error when process tx {}:{}", dayDir, txHash));
