@@ -149,7 +149,7 @@ void generateMinerTxFlowsOfDay(
             ++blockOffset;
         }
         logger.info(fmt::format("Finished {} minerTxFlows of date: {}", minerTxFlows.size(), dayDir));
-        auto minerTxFlowsFilePath = fmt::format("{}/{}", dayDir, "miner-tx-flows.json");
+        auto minerTxFlowsFilePath = fmt::format("{}/{}", dayDir, "miner-tx-flows.csv");
         dumpMinerTxFlows(minerTxFlowsFilePath, minerTxFlows);
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
@@ -233,17 +233,27 @@ void generateMinerTxFlowsOfTx(
                 continue;
             }
 
-            const auto minerTxItem = minerTxs.find(txIndex);
-            if (minerTxItem == minerTxs.cend()) {
+            const auto txIndexMinerTxIt = minerTxs.find(txIndex);
+            if (txIndexMinerTxIt == minerTxs.cend()) {
                 continue;
             }
 
+            const auto& txIndexMinerTx = txIndexMinerTxIt->second;
+            const auto& txIndexMinerOutputs = txIndexMinerTx["outputs"];
+            std::size_t outputOffset = prevOut["n"];
+            if (outputOffset >= txIndexMinerOutputs.size()) {
+                throw std::out_of_range(fmt::format(
+                    "outputOffset {} is greater than txIndexMinerOutputs.size() {}", 
+                    outputOffset, txIndexMinerOutputs.size()
+                ));
+            }
+
             BtcId prevOutAddr = addrItem.value();
-            BtcId minerTxAddr = minerTxItem->second["addr"];
+            json minerTxItem = txIndexMinerOutputs[outputOffset];
+            BtcId minerTxAddr = minerTxItem["addr"];
             if (prevOutAddr != minerTxAddr) {
                 logger.debug(prevOut.dump(1));
-                logger.debug(minerTxItem->second.dump(1));
-                exit(0);
+                logger.debug(minerTxItem.dump(1));
                 throw std::invalid_argument(fmt::format("prevOutAddr({}) != minerTxAddr({})", prevOutAddr, minerTxAddr));
             }
 
@@ -371,6 +381,11 @@ void dumpMinerTxFlows(
         "output_n",
     };
 
+    static const std::set<std::string> NUMBER_COLUMNS{
+        "input_value",
+        "output_value",
+    };
+
     logger.info(fmt::format("Dump miner tx flows: {}", filePath));
 
     for (const std::string& columnName : COLUMNS) {
@@ -380,7 +395,12 @@ void dumpMinerTxFlows(
 
     for (const auto& minerTxFlow : minerTxFlows) {
         for (const std::string& columnName : COLUMNS) {
-            minerTxFlowsFile << minerTxFlow[columnName] << ",";
+            if (NUMBER_COLUMNS.contains(columnName)) {
+                minerTxFlowsFile << minerTxFlow[columnName] << ",";
+            }
+            else {
+                minerTxFlowsFile << minerTxFlow[columnName] << ",";
+            }
         }
         minerTxFlowsFile << std::endl;
     }
