@@ -31,6 +31,7 @@ namespace fs = std::filesystem;
 struct MinerTxFlow {
     uint64_t prev_out_tx_index;
     BtcId prev_out_tx_addr;
+    int64_t prev_out_value;
     int64_t input_value;
     BtcId output_addr;
     int64_t output_value;
@@ -270,6 +271,7 @@ void generateMinerTxFlowsOfTx(
             json minerTxInput = {
                 {"prev_out_tx_index", txIndex},
                 {"prev_out_tx_addr", addrItem.value()},
+                {"prev_out_value", minerTxItem["value"]},
                 {"input_value", prevOut["value"]},
             };
 
@@ -298,6 +300,7 @@ void generateMinerTxFlowsOfTx(
                 minerTxFlows.push_back({
                     .prev_out_tx_index = minerTxInput["prev_out_tx_index"],
                     .prev_out_tx_addr = minerTxInput["prev_out_tx_addr"],
+                    .prev_out_value = minerTxInput["prev_out_value"],
                     .input_value = minerTxInput["input_value"],
                     .output_addr = output["addr"],
                     .output_value = output["value"],
@@ -366,10 +369,12 @@ void dumpMinerTxFlows(
 
     logger.info(fmt::format("Dump miner tx flows: {}", filePath));
 
+    std::string lines;
     for (const auto& minerTxFlow : minerTxFlows) {
-        std::string line = fmt::format("{},{},{},{},{},{},{},{}",
+        std::string line = fmt::format("{},{},{},{},{},{},{},{},{}\n",
             minerTxFlow.prev_out_tx_index,
             minerTxFlow.prev_out_tx_addr,
+            minerTxFlow.prev_out_value,
             minerTxFlow.input_value,
             minerTxFlow.output_addr,
             minerTxFlow.output_value,
@@ -378,8 +383,10 @@ void dumpMinerTxFlows(
             minerTxFlow.output_n
         );
 
-        minerTxFlowsFile << line << std::endl;
+        lines.append(line);
     }
+
+    minerTxFlowsFile << lines;
 }
 
 inline void logUsedMemory() {
