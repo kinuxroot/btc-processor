@@ -314,4 +314,5 @@ install(TARGETS
     btc_convert_exchanges
     btc_uf_exchanges
     btc_collect_miner_tx
+    btc_find_miner_tx_flow
 )

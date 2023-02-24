@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <iostream>
+#include <fstream>
 #include <functional>
 
 namespace utils {

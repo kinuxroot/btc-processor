@@ -30,6 +30,7 @@
 #include <string> // string, stoi, to_string
 #include <utility> // declval, forward, move, pair, swap
 #include <vector> // vector
+#include <iostream>
 
 #include <nlohmann/adl_serializer.hpp>
 #include <nlohmann/byte_container_with_subtype.hpp>
@@ -2138,6 +2139,9 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         if (JSON_HEDLEY_LIKELY(is_object()))
         {
             auto it = m_value.object->find(key);
+            if (it == m_value.object->end()) {
+              std::cerr << "<JSON> Key not found: " << key << std::endl;
+            }
             JSON_ASSERT(it != m_value.object->end());
             return it->second;
         }
