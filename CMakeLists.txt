@@ -299,6 +299,19 @@ target_sources(
 add_executable_deps(btc_find_miner_tx_flow)
 target_link_libraries(btc_find_miner_tx_flow nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_addr_statistics
+    src/btc_addr_statistics/main.cpp
+    src/btc_addr_statistics/logger.cpp
+)
+target_sources(
+    btc_addr_statistics
+    PRIVATE
+    include/btc_addr_statistics/logger.h
+)
+add_executable_deps(btc_addr_statistics)
+target_link_libraries(btc_addr_statistics nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -315,4 +328,5 @@ install(TARGETS
     btc_uf_exchanges
     btc_collect_miner_tx
     btc_find_miner_tx_flow
+    btc_addr_statistics
 )
