@@ -126,9 +126,12 @@ int main(int argc, char* argv[]) {
     for (auto& task : tasks) {
         addressOutputStatisticsPtrList.push_back(task.get());
     }
+    logUsedMemory();
 
     auto mergedAddressOutputCounts = mergeAddressOutputStatisticsList(addressOutputStatisticsPtrList);
     const char* mergedAddressOutputCountsFilePath = argv[3];
+    logUsedMemory();
+
     dumpAddressOutputStatistics(mergedAddressOutputCountsFilePath, *mergedAddressOutputCounts);
 
     return EXIT_SUCCESS;
@@ -347,7 +350,8 @@ void dumpAddressOutputStatistics(
 
     dumpAddressOutputCounts(filePath / "addr_tx_counts.list", addressOutputStatistics.txCounts);
     dumpAddressOutputCounts(filePath / "addr_input_counts.list", addressOutputStatistics.inputCounts);
-    
+
+    logger.info("Calculate averages");
     std::vector<double> addrTxInputAvgs(addressOutputStatistics.txCounts.size(), 0.0);
     for (BtcId currentId = 0; currentId != addrTxInputAvgs.size(); ++currentId) {
         if (!addressOutputStatistics.txCounts[currentId]) {
