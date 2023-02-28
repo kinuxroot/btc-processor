@@ -141,6 +141,11 @@ void convertBalanceListFiles(
         std::string ext = ".list";
         std::size_t extPos = outputFilePath.rfind(ext);
         outputFilePath.replace(extPos, extPos + ext.size(), ".out");
+        if (filePath == outputFilePath) {
+            logger.error(fmt::format("Path must be different {}:{}", filePath, outputFilePath));
+
+            continue;
+        }
         dumpBalanceList(outputFilePath, balanceList);
         logUsedMemory();
     }
