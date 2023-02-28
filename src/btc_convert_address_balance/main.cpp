@@ -48,7 +48,7 @@ auto& logger = getLogger();
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         std::cerr << "Invalid arguments!\n\n"
-            << "Usage: btc_filter_address_balance <output_base_dir> <id_max_value>"
+            << "Usage: btc_convert_address_balance <output_base_dir> <id_max_value>"
             << std::endl;
 
         return EXIT_FAILURE;

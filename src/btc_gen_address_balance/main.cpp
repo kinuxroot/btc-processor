@@ -121,9 +121,9 @@ int main(int argc, char* argv[]) {
             if (year != startYear) {
                 continue;
             }
-        }
-        else {
-            startYear = nullptr;
+            else {
+                startYear = nullptr;
+            }
         }
 
         logger.info(fmt::format("\n\n======================== Process year: {} ========================\n", year));
