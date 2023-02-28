@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 
 inline void logUsedMemory();
 

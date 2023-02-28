@@ -136,7 +136,12 @@ void convertBalanceListFiles(
 
         loadBalanceList(filePath, balanceList);
         logUsedMemory();
-        dumpBalanceList(filePath, balanceList);
+
+        std::string outputFilePath = filePath;
+        std::string ext = ".list";
+        std::size_t extPos = outputFilePath.rfind(ext);
+        outputFilePath.replace(extPos, extPos + ext.size(), ".out");
+        dumpBalanceList(outputFilePath, balanceList);
         logUsedMemory();
     }
 }
