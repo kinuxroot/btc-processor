@@ -14,21 +14,21 @@
 #include <string>
 #include <vector>
 #include <future>
-#include <set>
 #include <filesystem>
 #include <thread>
 #include <iostream>
-#include <map>
 
 using BalanceList = std::vector<int64_t>;
 using BalanceListPtr = std::shared_ptr<BalanceList>;
 
 namespace fs = std::filesystem;
 
+inline BtcId parseMaxId(const char* maxIdArg);
 std::vector<std::string> getAddressBalancePaths(const std::string& dirPath);
 void convertBalanceListFiles(
     uint32_t workerIndex,
-    const std::vector<std::string>* filePaths
+    const std::vector<std::string>* filePaths,
+    BtcId maxId
 );
 
 std::size_t loadBalanceList(
@@ -46,9 +46,9 @@ inline void logUsedMemory();
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
+    if (argc < 3) {
         std::cerr << "Invalid arguments!\n\n"
-            << "Usage: btc_filter_address_balance <output_base_dir> <start_year> <end_year>"
+            << "Usage: btc_filter_address_balance <output_base_dir> <id_max_value>"
             << std::endl;
 
         return EXIT_FAILURE;
@@ -56,18 +56,6 @@ int main(int argc, char* argv[]) {
 
     try {
         const char* outputBaseDirPath = argv[1];
-
-        int32_t startYear = std::stoi(argv[2]);
-        logger.info(fmt::format("Using start year: {}", startYear));
-
-        int32_t endYear = std::stoi(argv[3]);
-        logger.info(fmt::format("Using end year: {}", endYear));
-
-        std::vector<std::string> allYears;
-        for (int32_t year = startYear; year != endYear; ++year) {
-            allYears.push_back(std::to_string(year));
-        }
-        logger.info(fmt::format("Generate years count: {}", allYears.size()));
 
         uint32_t workerCount = std::min(BTC_CONVERT_ADDRESS_BALANCE_WORKER_COUNT, std::thread::hardware_concurrency());
         logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
@@ -78,11 +66,17 @@ int main(int argc, char* argv[]) {
             addressBalancePaths, workerCount
         );
 
+        BtcId maxId = parseMaxId(argv[2]);
+        if (!maxId) {
+            return EXIT_FAILURE;
+        }
+        logUsedMemory();
+
         uint32_t workerIndex = 0;
         std::vector<std::future<void>> tasks;
         for (const auto& taskChunk : taskChunks) {
             tasks.push_back(
-                std::async(convertBalanceListFiles, workerIndex, &taskChunk)
+                std::async(convertBalanceListFiles, workerIndex, &taskChunk, maxId)
             );
 
             ++workerIndex;
@@ -127,13 +121,14 @@ std::vector<std::string> getAddressBalancePaths(const std::string& dirPath) {
 
 void convertBalanceListFiles(
     uint32_t workerIndex,
-    const std::vector<std::string>* filePaths
+    const std::vector<std::string>* filePaths,
+    BtcId maxId
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     for (const auto& filePath : *filePaths) {
-        BalanceList balanceList;
-
+        BalanceList balanceList(maxId, 0);
+        
         loadBalanceList(filePath, balanceList);
         logUsedMemory();
 
@@ -149,6 +144,26 @@ void convertBalanceListFiles(
         dumpBalanceList(outputFilePath, balanceList);
         logUsedMemory();
     }
+}
+
+inline BtcId parseMaxId(const char* maxIdArg) {
+    BtcId maxId = 0;
+    try {
+        maxId = std::stoi(maxIdArg);
+
+        if (maxId == 0) {
+            logger.error("id_max_value must greater than zero!");
+
+            return maxId;
+        }
+    }
+    catch (const std::exception& e) {
+        logger.error(fmt::format("Can't parse value {} as id: {}", maxIdArg, e.what()));
+
+        return maxId;
+    }
+
+    return maxId;
 }
 
 std::size_t loadBalanceList(
@@ -192,7 +207,7 @@ void dumpBalanceList(
     BtcId btcId = 0;
     std::size_t balanceSize = balanceList.size();
     outputFile.write(reinterpret_cast<char*>(&balanceSize), sizeof(balanceSize));
-    outputFile.write(reinterpret_cast<const char*>(balanceList.data()), sizeof(balanceSize) * balanceSize);
+    outputFile.write(reinterpret_cast<const char*>(balanceList.data()), sizeof(int64_t) * balanceSize);
 }
 
 inline void logUsedMemory() {
