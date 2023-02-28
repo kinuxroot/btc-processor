@@ -16,17 +16,19 @@ namespace utils {
     void readLines(const std::string& filePath, std::vector<std::string>& lines);
     void readLines(const std::string& filePath, std::set<std::string>& lines);
 
-    template <typename T>
-    std::vector<T> readLines(
+    template <typename Container, typename T>
+    Container readLines(
         const std::string& filePath,
-        std::function<T(const std::string&)> converter
+        std::function<T(const std::string&)> converter,
+        std::function<void(Container&, T)> inserter = [](Container& results, T value) { results.push_back(value); }
     ) {
         std::vector<std::string> lines;
         readLines(filePath, lines);
 
-        std::vector<T> results;
+        Container results = Container();
         for (const auto& line : lines) {
-            results.push_back(converter(line));
+            auto convertedValue = converter(line);
+            inserter(results, convertedValue);
         }
 
         return results;

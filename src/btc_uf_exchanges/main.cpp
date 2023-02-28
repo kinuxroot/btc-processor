@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
     logger.info("Loading exchange address ids");
     const char* exchangeAddressIdsFilePath = argv[2];
-    std::vector<BtcId> addressIds = utils::readLines<BtcId>(
+    std::vector<BtcId> addressIds = utils::readLines<std::vector<BtcId>, BtcId>(
         exchangeAddressIdsFilePath,
         [](const std::string& line) -> BtcId {
             return std::stoi(line);

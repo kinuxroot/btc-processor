@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         std::set<BtcId> exchangeRootAddresseIds;
         if (argc == 4) {
             const char* exclusiveFilePath = argv[3];
-            std::vector<BtcId> addressIds = utils::readLines<BtcId>(
+            std::vector<BtcId> addressIds = utils::readLines<std::vector<BtcId>, BtcId>(
                 exclusiveFilePath,
                 [](const std::string& line) -> BtcId {
                     return std::stoi(line);

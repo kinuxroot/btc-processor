@@ -235,17 +235,17 @@ add_executable_deps(btc_gen_address_balance)
 target_link_libraries(btc_gen_address_balance nlohmann_json::nlohmann_json)
 
 add_executable(
-    btc_merge_address_balance
-    src/btc_merge_address_balance/main.cpp
-    src/btc_merge_address_balance/logger.cpp
+    btc_filter_address_balance
+    src/btc_filter_address_balance/main.cpp
+    src/btc_filter_address_balance/logger.cpp
 )
 target_sources(
-    btc_merge_address_balance
+    btc_filter_address_balance
     PRIVATE
-    include/btc_merge_address_balance/logger.h
+    include/btc_filter_address_balance/logger.h
 )
-add_executable_deps(btc_merge_address_balance)
-target_link_libraries(btc_merge_address_balance nlohmann_json::nlohmann_json)
+add_executable_deps(btc_filter_address_balance)
+target_link_libraries(btc_filter_address_balance nlohmann_json::nlohmann_json)
 
 add_executable(
     btc_convert_exchanges
@@ -312,6 +312,19 @@ target_sources(
 add_executable_deps(btc_addr_statistics)
 target_link_libraries(btc_addr_statistics nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_convert_address_balance
+    src/btc_convert_address_balance/main.cpp
+    src/btc_convert_address_balance/logger.cpp
+)
+target_sources(
+    btc_convert_address_balance
+    PRIVATE
+    include/btc_convert_address_balance/logger.h
+)
+add_executable_deps(btc_convert_address_balance)
+target_link_libraries(btc_convert_address_balance nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -323,7 +336,8 @@ install(TARGETS
     btc_collect_day_ins
     btc_export_union_find
     btc_gen_address_balance
-    btc_merge_address_balance
+    btc_convert_address_balance
+    btc_filter_address_balance
     btc_convert_exchanges
     btc_uf_exchanges
     btc_collect_miner_tx
