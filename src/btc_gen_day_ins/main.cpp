@@ -93,6 +93,7 @@ int main(int argc, char* argv[]) {
     std::set<BtcId> excludeAddresses;
     const std::string excludeAddressListFilePath = argumentParser.get("--exclude_addrs");
     if (!excludeAddressListFilePath.empty()) {
+        logger.info(fmt::format("Load excludeAddresses: {}", excludeAddressListFilePath));
         std::set<BtcId> excludeAddresses = utils::readLines<std::set<BtcId>, BtcId>(
             excludeAddressListFilePath,
             [](const std::string& line) -> BtcId {
@@ -102,11 +103,16 @@ int main(int argc, char* argv[]) {
                 container.insert(addressId);
             }
         );
+        logger.info(fmt::format("Loaded excludeAddresses: {}", excludeAddresses.size()));
+        logUsedMemory();
     }
 
     bool skipExisted = argumentParser.get<bool>("--skip_existed");
-    std::string dayInputsFileName = argumentParser.get("--day_ins_file");
+    if (skipExisted) {
+        logger.info("Skip completed tasks");
+    }
 
+    std::string dayInputsFileName = argumentParser.get("--day_ins_file");
     uint32_t workerIndex = 0;
     std::vector<std::future<void>> tasks;
     for (const auto& taskChunk : taskChunks) {
