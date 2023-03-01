@@ -11,6 +11,7 @@
 #include "utils/union_find.h"
 #include "fmt/format.h"
 #include <nlohmann/json.hpp>
+#include <argparse/argparse.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -26,6 +27,8 @@
 
 namespace fs = std::filesystem;
 
+static argparse::ArgumentParser createArgumentParser();
+
 using json = nlohmann::json;
 using WeightedQuickUnionPtr = std::shared_ptr<utils::btc::WeightedQuickUnion>;
 
@@ -33,22 +36,27 @@ inline BtcId parseMaxId(const char* maxIdArg);
 
 std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
     BtcId maxId,
-    const std::vector<std::string>& daysList
+    const std::vector<std::string>& daysList,
+    uint32_t initialWorkerCount,
+    const std::string& dayInputsFileName
 );
 
 std::vector<WeightedQuickUnionPtr> mergeQuickUnionsByWorkers(
-    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions
+    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions,
+    uint32_t maxMergeWorkerCount
 );
 
 WeightedQuickUnionPtr unionFindTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    BtcId maxId
+    BtcId maxId,
+    const std::string& dayInputsFileName
 );
 
 void unionFindTxInputsOfDay(
     const std::string& dayDir,
-    WeightedQuickUnionPtr quickUnion
+    WeightedQuickUnionPtr quickUnion,
+    const std::string& dayInputsFileName
 );
 
 WeightedQuickUnionPtr moveMergeQuickUnions(
@@ -60,34 +68,37 @@ inline void logUsedMemory();
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_union_find <days_dir_list> <id_max_value> <result_file>\n" << std::endl;
-
-        return EXIT_FAILURE;
+    auto argumentParser = createArgumentParser();
+    try {
+        argumentParser.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        logger.error(err.what());
+        std::cerr << argumentParser;
+        std::exit(1);
     }
 
-    const char* daysListFilePath = argv[1];
+    std::string daysListFilePath = argumentParser.get("days_dir_list");
     logger.info(fmt::format("Read tasks form {}", daysListFilePath));
-
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    BtcId maxId = parseMaxId(argv[2]);
-    if (!maxId) {
-        return EXIT_FAILURE;
-    }
+    BtcId maxId = argumentParser.get<BtcId>("--id_max_value");
+    uint32_t initialWorkerCount = argumentParser.get<uint32_t>("--worker_count");
+    std::string dayInputsFileName = argumentParser.get("--day_ins_file");
+
     logUsedMemory();
-    
-    auto quickFindUnions = unionFindByWorkers(maxId, daysList);
+    auto quickFindUnions = unionFindByWorkers(maxId, daysList, initialWorkerCount, dayInputsFileName);
     logUsedMemory();
 
-    auto firstMergedQuickFindUnions = mergeQuickUnionsByWorkers(quickFindUnions);
+    uint32_t maxMergeWorkerCount = argumentParser.get<uint32_t>("--merge_worker_count");
+    auto firstMergedQuickFindUnions = mergeQuickUnionsByWorkers(quickFindUnions, maxMergeWorkerCount);
     logUsedMemory();
 
     logger.info("Do final merge");
 
     WeightedQuickUnionPtr mergedQuickFindUnions = moveMergeQuickUnions(&firstMergedQuickFindUnions);
-    mergedQuickFindUnions->save(argv[3]);
+    mergedQuickFindUnions->save(argumentParser.get("result_file"));
     logger.info(fmt::format("Found entities: {}", mergedQuickFindUnions->getClusterCount()));
 
     logUsedMemory();
@@ -95,32 +106,47 @@ int main(int argc, char* argv[]) {
     return EXIT_SUCCESS;
 }
 
-inline BtcId parseMaxId(const char* maxIdArg) {
-    BtcId maxId = 0;
-    try {
-        maxId = std::stoi(maxIdArg);
+static argparse::ArgumentParser createArgumentParser() {
+    argparse::ArgumentParser program("btc_gen_day_ins");
 
-        if (maxId == 0) {
-            logger.error("id_max_value must greater than zero!");
+    program.add_argument("days_dir_list")
+        .required()
+        .help("List file path of days directories");
 
-            return maxId;
-        }
-    }
-    catch (const std::exception& e) {
-        logger.error(fmt::format("Can't parse value {} as id: {}", maxIdArg, e.what()));
+    program.add_argument("result_file")
+        .help("The file path of result file")
+        .required();
 
-        return maxId;
-    }
+    program.add_argument("--id_max_value")
+        .help("The max value of BTC Id")
+        .scan<'d', BtcId>()
+        .required();
 
-    return maxId;
+    program.add_argument("--day_ins_file")
+        .help("Filename of day inputs address file")
+        .default_value("day-inputs.json");
+
+    program.add_argument("-w", "--worker_count")
+        .help("Max worker count")
+        .scan<'d', uint32_t>()
+        .required();
+
+    program.add_argument("--merge_worker_count")
+        .help("Max merge worker count")
+        .scan<'d', uint32_t>()
+        .required();
+
+    return program;
 }
 
 std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
     BtcId maxId,
-    const std::vector<std::string>& daysList
+    const std::vector<std::string>& daysList,
+    uint32_t initialWorkerCount,
+    const std::string& dayInputsFileName
 ) {
 
-    uint32_t workerCount = std::min(BTC_UNION_FIND_WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(initialWorkerCount, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
@@ -129,7 +155,7 @@ std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
     std::vector<std::future<WeightedQuickUnionPtr>> tasks;
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
-            std::async(unionFindTxInputsOfDays, workerIndex, &taskChunk, maxId)
+            std::async(unionFindTxInputsOfDays, workerIndex, &taskChunk, maxId, dayInputsFileName)
         );
 
         ++workerIndex;
@@ -147,9 +173,10 @@ std::unique_ptr<std::vector<WeightedQuickUnionPtr>> unionFindByWorkers(
 }
 
 std::vector<WeightedQuickUnionPtr> mergeQuickUnionsByWorkers(
-    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions
+    std::unique_ptr<std::vector<WeightedQuickUnionPtr>>& quickFindUnions,
+    uint32_t maxMergeWorkerCount
 ) {
-    uint32_t firstMergeWorkerCount = std::min(BTC_UNION_FIND_INNER_MERGE_WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t firstMergeWorkerCount = std::min(maxMergeWorkerCount, std::thread::hardware_concurrency());
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("First merge worker count: {}", firstMergeWorkerCount));
     auto firstMergeQuickFindUnionChunks = utils::generateTaskChunks(*quickFindUnions, firstMergeWorkerCount);
@@ -186,14 +213,15 @@ std::vector<WeightedQuickUnionPtr> mergeQuickUnionsByWorkers(
 WeightedQuickUnionPtr unionFindTxInputsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysList,
-    BtcId maxId
+    BtcId maxId,
+    const std::string& dayInputsFileName
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     auto quickUnion = std::make_shared<utils::btc::WeightedQuickUnion>(maxId);
 
     for (const auto& dayDir : *daysList) {
-        unionFindTxInputsOfDay(dayDir, quickUnion);
+        unionFindTxInputsOfDay(dayDir, quickUnion, dayInputsFileName);
     }
 
     return quickUnion;
@@ -201,10 +229,11 @@ WeightedQuickUnionPtr unionFindTxInputsOfDays(
 
 void unionFindTxInputsOfDay(
     const std::string& dayDir,
-    WeightedQuickUnionPtr quickUnion
+    WeightedQuickUnionPtr quickUnion,
+    const std::string& dayInputsFileName
 ) {
     try {
-        auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, "day-inputs.json");
+        auto txInputsOfDayFilePath = fmt::format("{}/{}", dayDir, dayInputsFileName);
         std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
         utils::btc::loadDayInputs(txInputsOfDayFilePath.c_str(), txInputsOfDay);
 
