@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
     const std::string excludeAddressListFilePath = argumentParser.get("--exclude_addrs");
     if (!excludeAddressListFilePath.empty()) {
         logger.info(fmt::format("Load excludeAddresses: {}", excludeAddressListFilePath));
-        std::set<BtcId> excludeAddresses = utils::readLines<std::set<BtcId>, BtcId>(
+        excludeAddresses = utils::readLines<std::set<BtcId>, BtcId>(
             excludeAddressListFilePath,
             [](const std::string& line) -> BtcId {
                 return std::stoi(line);
@@ -266,7 +266,7 @@ inline std::vector<BtcId> generateTxInputs(
             BtcId addressId = addrItem.value();
             // 如果输出中包含需要排除的交易所地址，整笔交易都不考虑
             if (excludeAddresses.contains(addressId)) {
-                logger.info(fmt::format("Found address {} in out of tx {}", addressId, txHash));
+                logger.info(fmt::format("Exclude tx {}, address {} found in out", txHash, addressId));
 
                 return std::vector<BtcId>();
             }
@@ -285,7 +285,7 @@ inline std::vector<BtcId> generateTxInputs(
                 BtcId addressId = addrItem.value();
                 // 如果输入中包含需要排除的交易所地址，整笔交易都不考虑
                 if (excludeAddresses.contains(addressId)) {
-                    logger.info(fmt::format("Found address {} in out of tx {}", addressId, txHash));
+                    logger.info(fmt::format("Exclude tx {}, address {} found in input", txHash, addressId));
 
                     return std::vector<BtcId>();
                 }
