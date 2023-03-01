@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 }
 
 static argparse::ArgumentParser createArgumentParser() {
-    argparse::ArgumentParser program("btc_gen_day_ins");
+    argparse::ArgumentParser program("btc_union_find");
 
     program.add_argument("days_dir_list")
         .required()

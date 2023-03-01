@@ -20,7 +20,7 @@ namespace utils::btc {
         return findRoot(p) == findRoot(q);
     }
 
-    BtcId WeightedQuickUnion::findRoot(BtcId p) {
+    BtcId WeightedQuickUnion::findRoot(BtcId p) const {
         while (p != _ids[p]) {
             p = _ids[p];
         }
