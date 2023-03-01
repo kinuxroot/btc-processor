@@ -5,6 +5,10 @@ project(btc-processor-posix)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(/utf-8)
+endif()
+
 
 add_subdirectory(nlohmann_json)
 
