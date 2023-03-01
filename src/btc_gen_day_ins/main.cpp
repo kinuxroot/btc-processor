@@ -266,6 +266,8 @@ inline std::vector<BtcId> generateTxInputs(
             BtcId addressId = addrItem.value();
             // 如果输出中包含需要排除的交易所地址，整笔交易都不考虑
             if (excludeAddresses.contains(addressId)) {
+                logger.info(fmt::format("Found address {} in out of tx {}", addressId, txHash));
+
                 return std::vector<BtcId>();
             }
         }
@@ -283,6 +285,8 @@ inline std::vector<BtcId> generateTxInputs(
                 BtcId addressId = addrItem.value();
                 // 如果输入中包含需要排除的交易所地址，整笔交易都不考虑
                 if (excludeAddresses.contains(addressId)) {
+                    logger.info(fmt::format("Found address {} in out of tx {}", addressId, txHash));
+
                     return std::vector<BtcId>();
                 }
 
