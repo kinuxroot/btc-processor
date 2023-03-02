@@ -247,13 +247,15 @@ void processYearAddressBalance(
     BtcId currentAddressId = 0;
     logger.info("Calculate balance list of entities");
     for (int64_t balance : balanceList) {
+        logger.debug(fmt::format("Find root of currentAddressId: {}", currentAddressId));
         BtcId entityId = quickUnion.findRoot(currentAddressId);
+        logger.debug(fmt::format("Found root {} -> {}", currentAddressId, entityId));
 
         if (entityId >= balanceList.size()) {
             logger.error(fmt::format("Entity id {} is greater than balance array size: {}", entityId, balanceList.size()));
             continue;
         }
-        clusterBalances[entityId] += balance;
+        clusterBalances.at(entityId) += balance;
 
         ++currentAddressId;
     }
