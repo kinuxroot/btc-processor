@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
             &outputFile, &dumpedClusterCount, &exchangeRootAddresseIds, &skippedClusterCount, &skippedAddressCount
         ](BtcId btcId, BtcSize btcSize) {
             if (exchangeRootAddresseIds.contains(btcId)) {
-                logger.info(fmt::format("Skip btcId {} btcSize {}", btcId, btcSize));
+                //logger.info(fmt::format("Skip btcId {} btcSize {}", btcId, btcSize));
 
                 skippedAddressCount += btcSize;
                 ++ skippedClusterCount;
