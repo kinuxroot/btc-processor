@@ -33,6 +33,7 @@ void generateTxInputsOfDays(
     const std::vector<std::string>* daysDirList,
     const std::set<BtcId>* excludeAddresses,
     bool skipExisted,
+    bool excludeInputs,
     std::string dayInputsFileName
 );
 
@@ -40,18 +41,21 @@ void generateTxInputsOfDay(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
     bool skipExisted,
+    bool excludeInputs,
     std::string dayInputsFileName
 );
 
 inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
+    bool excludeInputs,
     const json& block
 );
 
 inline std::vector<BtcId> generateTxInputs(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
+    bool excludeInputs,
     const json& tx
 );
 
@@ -112,12 +116,28 @@ int main(int argc, char* argv[]) {
         logger.info("Skip completed tasks");
     }
 
+    bool excludeInputs = argumentParser.get<bool>("--exclude_inputs");
+    if (excludeInputs) {
+        logger.info("Exclude Inputs");
+    }
+    else {
+        logger.info("Not exclude Inputs");
+    }
+
     std::string dayInputsFileName = argumentParser.get("--day_ins_file");
     uint32_t workerIndex = 0;
     std::vector<std::future<void>> tasks;
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
-            std::async(generateTxInputsOfDays, workerIndex, &taskChunk, &excludeAddresses, skipExisted, dayInputsFileName)
+            std::async(
+                generateTxInputsOfDays,
+                workerIndex,
+                &taskChunk,
+                &excludeAddresses,
+                skipExisted,
+                excludeInputs,
+                dayInputsFileName
+            )
         );
 
         ++workerIndex;
@@ -147,6 +167,11 @@ static argparse::ArgumentParser createArgumentParser() {
         .implicit_value(true)
         .default_value(false);
 
+    program.add_argument("--exclude_inputs")
+        .help("Exclude inputs")
+        .implicit_value(true)
+        .default_value(false);
+
     program.add_argument("-w", "--worker_count")
         .help("Max worker count")
         .scan<'d', uint32_t>()
@@ -160,12 +185,13 @@ void generateTxInputsOfDays(
     const std::vector<std::string>* daysList,
     const std::set<BtcId>* excludeAddresses,
     bool skipExisted,
+    bool excludeInputs,
     std::string dayInputsFileName
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     for (const auto& dayDir : *daysList) {
-        generateTxInputsOfDay(dayDir, *excludeAddresses, skipExisted, dayInputsFileName);
+        generateTxInputsOfDay(dayDir, *excludeAddresses, skipExisted, excludeInputs, dayInputsFileName);
     }
 }
 
@@ -173,6 +199,7 @@ void generateTxInputsOfDay(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
     bool skipExisted,
+    bool excludeInputs,
     std::string dayInputsFileName
 ) {
     try {
@@ -200,7 +227,7 @@ void generateTxInputsOfDay(
 
         std::vector<std::vector<std::vector<BtcId>>> txInputsOfDay;
         for (const auto& block : blocks) {
-            const auto& txInputsOfBlock = generateTxInputsOfBlock(dayDir, excludeAddresses, block);
+            const auto& txInputsOfBlock = generateTxInputsOfBlock(dayDir, excludeAddresses, excludeInputs, block);
             if (txInputsOfBlock.size() > 0) {
                 txInputsOfDay.push_back(txInputsOfBlock);
             }
@@ -224,6 +251,7 @@ void generateTxInputsOfDay(
 inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
+    bool excludeInputs,
     const json& block
 ) {
     std::string blockHash = utils::json::get(block, "hash");
@@ -233,7 +261,7 @@ inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
         const auto& txs = block["tx"];
 
         for (const auto& tx : txs) {
-            const auto& inputIds = generateTxInputs(dayDir, excludeAddresses, tx);
+            const auto& inputIds = generateTxInputs(dayDir, excludeAddresses, excludeInputs, tx);
 
             if (inputIds.size() > 0) {
                 inputIdsOfBlock.push_back(inputIds);
@@ -251,6 +279,7 @@ inline std::vector<std::vector<BtcId>> generateTxInputsOfBlock(
 inline std::vector<BtcId> generateTxInputs(
     const std::string& dayDir,
     const std::set<BtcId>& excludeAddresses,
+    bool excludeInputs,
     const json& tx
 ) {
     std::string txHash = utils::json::get(tx, "hash");
@@ -282,7 +311,7 @@ inline std::vector<BtcId> generateTxInputs(
             if (addrItem != prevOut.cend()) {
                 BtcId addressId = addrItem.value();
                 // 如果输入中包含需要排除的交易所地址，整笔交易都不考虑
-                if (excludeAddresses.contains(addressId)) {
+                if (excludeInputs && excludeAddresses.contains(addressId)) {
                     return std::vector<BtcId>();
                 }
 
