@@ -245,6 +245,7 @@ void processYearAddressBalance(
 
     std::vector<uint64_t> clusterBalances(balanceList.size(), 0);
     BtcId currentAddressId = 0;
+    logger.info("Calculate balance list of entities");
     for (int64_t balance : balanceList) {
         BtcId entityId = quickUnion.findRoot(currentAddressId);
 
@@ -262,6 +263,7 @@ void processYearAddressBalance(
     BtcSize skippedClusterCount = 0;
     BtcSize skippedAddressCount = 0;
     std::ofstream outputFile(entityBalanceFilePath.c_str());
+    logger.info(fmt::format("Output balance list of entities to {}", entityBalanceFilePath));
     quickUnionClusters.forEach([
         &outputFile, &exchangeRootAddresseIds, &clusterBalances,
             &skippedClusterCount, &dumpedClusterCount, &skippedAddressCount
