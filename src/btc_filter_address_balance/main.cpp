@@ -271,8 +271,6 @@ void processYearAddressBalance(
             &skippedClusterCount, &dumpedClusterCount, &skippedAddressCount
     ](BtcId btcId, BtcSize btcSize) {
         if (exchangeRootAddresseIds.contains(btcId)) {
-            logger.info(fmt::format("Skip btcId {} btcSize {}", btcId, btcSize));
-
             skippedAddressCount += btcSize;
             ++skippedClusterCount;
 
