@@ -289,7 +289,7 @@ void processYearAddressBalance(
         ++dumpedClusterCount;
 
         if (dumpedClusterCount % 100000 == 0) {
-            logger.info(fmt::format("Dump clusters: {}", btcId));
+            logger.info(fmt::format("Dump clusters: {}", dumpedClusterCount));
         }
     });
 
