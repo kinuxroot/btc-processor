@@ -79,7 +79,9 @@ int main(int argc, char* argv[]) {
 
         const std::string ufFilePath = argumentParser.get("--union_file");
         utils::btc::WeightedQuickUnion quickUnion(1);
+        logger.info(fmt::format("Load quickUnion from {}", ufFilePath));
         quickUnion.load(ufFilePath);
+        logger.info(fmt::format("Loaded quickUnion {} items from {}", quickUnion.getSize(), ufFilePath));
 
         const std::string excludeAddressListFilePath = argumentParser.get("--exclude_addrs");
         const std::set<BtcId>& excludeRootAddresses = loadExcludeRootAddresses(excludeAddressListFilePath, quickUnion);
