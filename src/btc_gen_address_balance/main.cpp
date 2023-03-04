@@ -22,6 +22,7 @@
 #include <thread>
 #include <iostream>
 #include <map>
+#include <iomanip>
 
 using json = nlohmann::json;
 using BalanceValue = double;
@@ -68,6 +69,11 @@ std::size_t loadBalanceList(
 );
 
 void dumpBalanceList(
+    const std::string& outputFilePath,
+    const BalanceList& balanceList
+);
+
+void dumpBinaryBalanceList(
     const std::string& outputFilePath,
     const BalanceList& balanceList
 );
@@ -129,7 +135,8 @@ int main(int argc, char* argv[]) {
 
         logger.info(fmt::format("\n\n======================== Process year: {} ========================\n", year));
         auto outputFilePath = fmt::format("{}/{}.list", outputBaseDirPath, year);
-        if (fs::exists(outputFilePath)) {
+        auto binaryOutputFilePath = fmt::format("{}/{}.out", outputBaseDirPath, year);
+        if (fs::exists(outputFilePath) && fs::exists(binaryOutputFilePath)) {
             logger.info(fmt::format("Load existed file", year));
             auto loadedCount = loadBalanceList(outputFilePath, balanceList);
             logger.info(fmt::format("Loaded {} records of year {}", loadedCount, year));
@@ -161,6 +168,7 @@ int main(int argc, char* argv[]) {
         }
 
         dumpBalanceList(outputFilePath, balanceList);
+        dumpBinaryBalanceList(binaryOutputFilePath, balanceList);
     }
 
     return EXIT_SUCCESS;
@@ -393,7 +401,7 @@ void dumpBalanceList(
 
     BtcId btcId = 0;
     for (auto balance : balanceList) {
-        outputFile << btcId << "," << balance << std::endl;
+        outputFile << btcId << "," << std::setprecision(19) << balance << std::endl;
 
         ++btcId;
 
@@ -401,6 +409,20 @@ void dumpBalanceList(
             logger.info(fmt::format("Dump balance id: {}", btcId));
         }
     }
+}
+
+void dumpBinaryBalanceList(
+    const std::string& outputFilePath,
+    const BalanceList& balanceList
+) {
+    logger.info(fmt::format("Dump balance to: {}", outputFilePath));
+
+    std::ofstream outputFile(outputFilePath.c_str(), std::ios::binary);
+
+    BtcId btcId = 0;
+    std::size_t balanceSize = balanceList.size();
+    outputFile.write(reinterpret_cast<char*>(&balanceSize), sizeof(balanceSize));
+    outputFile.write(reinterpret_cast<const char*>(balanceList.data()), sizeof(BalanceValue) * balanceSize);
 }
 
 inline void logUsedMemory() {

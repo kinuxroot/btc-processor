@@ -12,6 +12,7 @@
 #include <iostream>
 #include <thread>
 #include <filesystem>
+#include <iomanip>
 
 namespace fs = std::filesystem;
 using BalanceValue = double;
@@ -285,7 +286,7 @@ void processYearAddressBalance(
         }
 
         auto balance = clusterBalances[btcId];
-        outputFile << btcId << "," << btcSize << "," << balance << std::endl;
+        outputFile << btcId << "," << btcSize << "," << std::setprecision(19) << balance << std::endl;
 
         ++dumpedClusterCount;
 
