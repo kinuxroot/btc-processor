@@ -18,7 +18,8 @@
 #include <thread>
 #include <iostream>
 
-using BalanceList = std::vector<int64_t>;
+using BalanceValue = double;
+using BalanceList = std::vector<BalanceValue>;
 using BalanceListPtr = std::shared_ptr<BalanceList>;
 
 namespace fs = std::filesystem;
@@ -187,7 +188,7 @@ std::size_t loadBalanceList(
         std::string balanceString = line.substr(seperatorPos + 1);
 
         BtcId btcId = std::stoll(btcIdString);
-        int64_t btcValue = std::stoll(balanceString);
+        BalanceValue btcValue = std::stod(balanceString);
 
         balanceList[btcId] = btcValue;
         ++ loadedCount;
@@ -207,7 +208,7 @@ void dumpBalanceList(
     BtcId btcId = 0;
     std::size_t balanceSize = balanceList.size();
     outputFile.write(reinterpret_cast<char*>(&balanceSize), sizeof(balanceSize));
-    outputFile.write(reinterpret_cast<const char*>(balanceList.data()), sizeof(int64_t) * balanceSize);
+    outputFile.write(reinterpret_cast<const char*>(balanceList.data()), sizeof(BalanceValue) * balanceSize);
 }
 
 inline void logUsedMemory() {

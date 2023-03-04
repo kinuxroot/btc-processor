@@ -14,7 +14,8 @@
 #include <filesystem>
 
 namespace fs = std::filesystem;
-using BalanceList = std::vector<int64_t>;
+using BalanceValue = double;
+using BalanceList = std::vector<BalanceValue>;
 
 inline void logUsedMemory();
 
@@ -245,10 +246,10 @@ void processYearAddressBalance(
     BalanceList balanceList;
     loadBalanceList(addressBalanceFilePath, balanceList);
 
-    std::vector<uint64_t> clusterBalances(balanceList.size(), 0);
+    std::vector<BalanceValue> clusterBalances(balanceList.size(), 0.0);
     BtcId currentAddressId = 0;
     logger.info("Calculate balance list of entities");
-    for (int64_t balance : balanceList) {
+    for (auto balance : balanceList) {
         BtcId entityId = quickUnion.findRoot(currentAddressId);
 
         if (entityId >= balanceList.size()) {
@@ -308,7 +309,7 @@ std::size_t loadBalanceList(
     std::size_t balanceSize = 0;
     inputFile.read(reinterpret_cast<char*>(&balanceSize), sizeof(balanceSize));
     balanceList.resize(balanceSize);
-    inputFile.read(reinterpret_cast<char*>(balanceList.data()), sizeof(int64_t) * balanceSize);
+    inputFile.read(reinterpret_cast<char*>(balanceList.data()), sizeof(BalanceValue) * balanceSize);
     logger.info(fmt::format("Loaded {} balance from: {}", balanceSize, inputFilePath));
 
     return balanceSize;

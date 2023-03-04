@@ -24,7 +24,8 @@
 #include <map>
 
 using json = nlohmann::json;
-using BalanceList = std::vector<int64_t>;
+using BalanceValue = double;
+using BalanceList = std::vector<BalanceValue>;
 using BalanceListPtr = std::shared_ptr<BalanceList>;
 
 namespace fs = std::filesystem;
@@ -116,7 +117,7 @@ int main(int argc, char* argv[]) {
     for (const auto& yearDaysList : groupedDaysList) {
         const auto& year = yearDaysList.first;
 
-        // ´ÓÆðÊ¼Äê·Ý¿ªÊ¼¼ÆËã
+        // ä»Žèµ·å§‹å¹´ä»½å¼€å§‹è®¡ç®—
         if (startYear) {
             if (year != startYear) {
                 continue;
@@ -221,7 +222,7 @@ BalanceListPtr generateBalanceListOfDays(
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
-    BalanceListPtr balanceList = std::make_shared<BalanceList>(maxId, 0);
+    BalanceListPtr balanceList = std::make_shared<BalanceList>(maxId, 0.0);
     for (const auto& dayDir : *daysDirList) {
         calculateBalanceListOfDays(dayDir, balanceList);
     }
@@ -309,7 +310,7 @@ void calculateBalanceListOfTx(
             if (valueItem == prevOut.cend()) {
                 continue;
             }
-            int64_t value = valueItem.value();
+            BalanceValue value = valueItem.value();
 
             balanceList->at(addressId) -= value;
         }
@@ -326,7 +327,7 @@ void calculateBalanceListOfTx(
             if (valueItem == output.cend()) {
                 continue;
             }
-            int64_t value = valueItem.value();
+            BalanceValue value = valueItem.value();
 
             balanceList->at(addressId) += value;
         }
@@ -373,7 +374,7 @@ std::size_t loadBalanceList(
         std::string balanceString = line.substr(seperatorPos + 1);
 
         BtcId btcId = std::stoll(btcIdString);
-        int64_t btcValue = std::stoll(balanceString);
+        BalanceValue btcValue = std::stod(balanceString);
 
         balanceList[btcId] = btcValue;
         ++ loadedCount;
