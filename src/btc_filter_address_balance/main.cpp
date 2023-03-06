@@ -227,6 +227,12 @@ void processAddressBalanceOfYears(
     for (const std::string& addressBalanceFilePath : *addressBalanceFilePaths) {
         auto entityBalanceFilePath = outputBaseDirPath / fs::path(addressBalanceFilePath).filename();
 
+        if (fs::exists(entityBalanceFilePath)) {
+            logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath));
+
+            return;
+        }
+
         processYearAddressBalance(
             addressBalanceFilePath,
             entityBalanceFilePath.string(),
