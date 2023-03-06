@@ -227,18 +227,35 @@ void processAddressBalanceOfYears(
     for (const std::string& addressBalanceFilePath : *addressBalanceFilePaths) {
         auto entityBalanceFilePath = outputBaseDirPath / fs::path(addressBalanceFilePath).filename();
 
-        if (fs::exists(entityBalanceFilePath)) {
-            logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath.string()));
+        //if (fs::exists(entityBalanceFilePath)) {
+        //    logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath.string()));
 
-            return;
+        //    return;
+        //}
+
+        //processYearAddressBalance(
+        //    addressBalanceFilePath,
+        //    entityBalanceFilePath.string(),
+        //    *quickUnion,
+        //    *excludeAddresses
+        //);
+
+        checkYearAddressBalance(addressBalanceFilePath);
+    }
+}
+
+void checkYearAddressBalance(
+    const std::string& addressBalanceFilePath
+) {
+    using utils::btc::BtcSize;
+
+    BalanceList balanceList;
+    loadBalanceList(addressBalanceFilePath, balanceList);
+
+    for (BalanceValue balance : balanceList) {
+        if (balance < 0) {
+            logger.error(fmt::format("Error balance: {}", balance));
         }
-
-        processYearAddressBalance(
-            addressBalanceFilePath,
-            entityBalanceFilePath.string(),
-            *quickUnion,
-            *excludeAddresses
-        );
     }
 }
 
