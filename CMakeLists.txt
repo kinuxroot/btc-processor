@@ -77,6 +77,7 @@ add_library(
     src/utils/json_utils.cpp
     src/utils/btc_utils.cpp
     src/utils/mem_utils.cpp
+    src/utils/numeric_utils.cpp
     src/utils/union_find.cpp
 )
 target_sources(
@@ -87,6 +88,7 @@ target_sources(
     include/utils/json_utils.h
     include/utils/btc_utils.h
     include/utils/mem_utils.h
+    include/utils/numeric_utils.h
     include/utils/union_find.h
 )
 add_library_deps(utils)
@@ -329,6 +331,18 @@ target_sources(
 add_executable_deps(btc_convert_address_balance)
 target_link_libraries(btc_convert_address_balance nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_gen_entity_distribution
+    src/btc_gen_entity_distribution/main.cpp
+    src/btc_gen_entity_distribution/logger.cpp
+)
+target_sources(
+    btc_gen_entity_distribution
+    PRIVATE
+    include/btc_gen_entity_distribution/logger.h
+)
+add_executable_deps(btc_gen_entity_distribution)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -347,4 +361,5 @@ install(TARGETS
     btc_collect_miner_tx
     btc_find_miner_tx_flow
     btc_addr_statistics
+    btc_gen_entity_distribution
 )
