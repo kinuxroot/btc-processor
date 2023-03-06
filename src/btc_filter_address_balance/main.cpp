@@ -49,6 +49,9 @@ void processYearAddressBalance(
     utils::btc::WeightedQuickUnion& quickUnion,
     const std::set<BtcId>& excludeAddresses
 );
+void checkYearAddressBalance(
+    const std::string& addressBalanceFilePath
+);
 
 int main(int argc, char* argv[]) {
     auto argumentParser = createArgumentParser();
