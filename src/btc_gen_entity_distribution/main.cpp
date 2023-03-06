@@ -40,12 +40,14 @@ void processEntityBalanceOfYears(
     uint32_t workerIndex,
     const std::vector<std::string>* addressBalanceFilePaths,
     const std::string& outputBaseDir,
-    std::size_t initialBufferSize
+    std::size_t initialBufferSize,
+    std::uint32_t distributionSegment
 );
 void processYearEntityBalance(
     const std::string& addressBalanceFilePath,
     const std::string& entityBalanceFilePathPrefix,
-    std::size_t initialBufferSize
+    std::size_t initialBufferSize,
+    std::uint32_t distributionSegment
 );
 void generateEntityBalanceRanks(
     const std::string& addressBalanceFilePath,
@@ -62,7 +64,8 @@ void generateEntityBalanceDistribution(
     const std::string& entityBalanceRanksFilePath,
     const BalanceList& balanceList,
     BalanceValue minBalance,
-    BalanceValue maxBalance
+    BalanceValue maxBalance,
+    std::uint32_t distributionSegment
 );
 
 int main(int argc, char* argv[]) {
@@ -88,6 +91,9 @@ int main(int argc, char* argv[]) {
         auto initialBufferSize = argumentParser.get<std::size_t>("--buffer_size");
         logger.info(fmt::format("Using initial balance buffer size: {}", initialBufferSize));
 
+        auto distributionSegment = argumentParser.get<uint32_t>("--distribution_segments");
+        logger.info(fmt::format("Using end distribution segment: {}", distributionSegment));
+
         uint32_t workerCount = std::min(argumentParser.get<uint32_t>("--worker_count"), std::thread::hardware_concurrency());
         logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
         logger.info(fmt::format("Worker count: {}", workerCount));
@@ -108,7 +114,8 @@ int main(int argc, char* argv[]) {
                     workerIndex,
                     &taskChunk,
                     outputBaseDirPath,
-                    initialBufferSize
+                    initialBufferSize,
+                    distributionSegment
                 )
             );
 
@@ -152,6 +159,11 @@ static argparse::ArgumentParser createArgumentParser() {
         .help("Balance buffer initial size")
         .scan<'d', std::size_t>()
         .default_value(4096u);
+
+    program.add_argument("--distribution_segments")
+        .help("Distribution segments")
+        .scan<'d', std::uint32_t>()
+        .default_value(100u);
 
     program.add_argument("-w", "--worker_count")
         .help("Max worker count")
@@ -201,7 +213,8 @@ void processEntityBalanceOfYears(
     uint32_t workerIndex,
     const std::vector<std::string>* addressBalanceFilePaths,
     const std::string& outputBaseDir,
-    std::size_t initialBufferSize
+    std::size_t initialBufferSize,
+    std::uint32_t distributionSegment
 ) {
     fs::path outputBaseDirPath(outputBaseDir);
 
@@ -211,7 +224,8 @@ void processEntityBalanceOfYears(
         processYearEntityBalance(
             addressBalanceFilePath,
             entityBalanceFilePathPrefix.string(),
-            initialBufferSize
+            initialBufferSize,
+            distributionSegment
         );
     }
 }
@@ -219,7 +233,8 @@ void processEntityBalanceOfYears(
 void processYearEntityBalance(
     const std::string& addressBalanceFilePath,
     const std::string& entityBalanceFilePathPrefix,
-    std::size_t initialBufferSize
+    std::size_t initialBufferSize,
+    std::uint32_t distributionSegment
 ) {
     using utils::btc::BtcSize;
 
@@ -237,7 +252,8 @@ void processYearEntityBalance(
         entityBalanceFilePathPrefix + ".dist",
         balanceList,
         std::get<0>(basicStatistics),
-        std::get<1>(basicStatistics)
+        std::get<1>(basicStatistics),
+        distributionSegment
     );
 }
 
@@ -313,13 +329,14 @@ void generateEntityBalanceDistribution(
     const std::string& entityBalanceDistributionFilePath,
     const BalanceList& balanceList,
     BalanceValue minBalance,
-    BalanceValue maxBalance
+    BalanceValue maxBalance,
+    uint32_t distributionSegment
 ) {
     logger.info("Generate entity balance balance distribution");
 
     using utils::btc::BtcSize;
 
-    BalanceValue step = (maxBalance - minBalance) / 100;
+    BalanceValue step = (maxBalance - minBalance) / distributionSegment;
     auto balanceRange = utils::range(minBalance, maxBalance, step);
     if (balanceRange.back() < maxBalance) {
         balanceRange.push_back(balanceRange.back() + step);

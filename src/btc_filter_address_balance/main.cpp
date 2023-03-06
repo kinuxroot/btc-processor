@@ -228,7 +228,7 @@ void processAddressBalanceOfYears(
         auto entityBalanceFilePath = outputBaseDirPath / fs::path(addressBalanceFilePath).filename();
 
         if (fs::exists(entityBalanceFilePath)) {
-            logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath));
+            logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath.string()));
 
             return;
         }
