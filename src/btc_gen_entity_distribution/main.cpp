@@ -34,7 +34,8 @@ std::vector<std::string> getAddressBalancePaths(
 );
 std::size_t loadBalanceList(
     const std::string& inputFilePath,
-    BalanceList& balanceList
+    BalanceList& balanceList,
+    std::size_t& zeroEntityCount
 );
 void processEntityBalanceOfYears(
     uint32_t workerIndex,
@@ -57,7 +58,8 @@ void generateEntityBalanceRanks(
 std::tuple<BalanceValue, BalanceValue> generateEntityBalanceBasicStatistics(
     const std::string& addressBalanceFilePath,
     const std::string& entityBalanceBasicStatisticsFilePath,
-    const BalanceList& balanceList
+    const BalanceList& balanceList,
+    std::size_t zeroEntityCount
 );
 void generateEntityBalanceDistribution(
     const std::string& addressBalanceFilePath,
@@ -240,12 +242,15 @@ void processYearEntityBalance(
 
     BalanceList balanceList;
     balanceList.reserve(initialBufferSize);
-    loadBalanceList(addressBalanceFilePath, balanceList);
+    std::size_t zeroEntityCount = 0;
+    loadBalanceList(addressBalanceFilePath, balanceList, zeroEntityCount);
 
     generateEntityBalanceRanks(addressBalanceFilePath, entityBalanceFilePathPrefix + ".ranks", balanceList);
     auto basicStatistics = generateEntityBalanceBasicStatistics(
         addressBalanceFilePath,
-        entityBalanceFilePathPrefix + ".bs", balanceList
+        entityBalanceFilePathPrefix + ".bs",
+        balanceList,
+        zeroEntityCount
     );
     generateEntityBalanceDistribution(
         addressBalanceFilePath,
@@ -303,7 +308,8 @@ void generateEntityBalanceRanks(
 std::tuple<BalanceValue, BalanceValue> generateEntityBalanceBasicStatistics(
     const std::string& addressBalanceFilePath,
     const std::string& entityBalanceBasicStatisticsFilePath,
-    const BalanceList& balanceList
+    const BalanceList& balanceList,
+    std::size_t zeroEntityCount
 ) {
     logger.info("Generate entity balance basic statistics");
 
@@ -315,11 +321,16 @@ std::tuple<BalanceValue, BalanceValue> generateEntityBalanceBasicStatistics(
         minBalance = std::min(balance, minBalance);
     }
 
-    logger.info(fmt::format("Min: {:.19g}, Max: {:.19g}", minBalance, maxBalance));
+    logger.info(fmt::format(
+        "Min: {:.19g}, Max: {:.19g}, Zero entity count: {}",
+        minBalance,
+        maxBalance,
+        zeroEntityCount
+    ));
 
     logger.info(fmt::format("Output basic statistics to {}", entityBalanceBasicStatisticsFilePath));
     std::ofstream outputFile(entityBalanceBasicStatisticsFilePath.c_str());
-    outputFile << fmt::format("{:.19g},{:.19g}", minBalance, maxBalance) << std::endl;
+    outputFile << fmt::format("{:.19g},{:.19g},{}", minBalance, maxBalance, zeroEntityCount) << std::endl;
 
     return std::make_tuple(minBalance, maxBalance);
 }
@@ -370,11 +381,13 @@ void generateEntityBalanceDistribution(
 
 std::size_t loadBalanceList(
     const std::string& inputFilePath,
-    BalanceList& balanceList
+    BalanceList& balanceList,
+    std::size_t& zeroEntityCount
 ) {
     logger.info(fmt::format("Load balance from: {}", inputFilePath));
     std::ifstream inputFile(inputFilePath.c_str());
     std::size_t loadedCount = 0;
+    zeroEntityCount = 0;
 
     while (inputFile) {
         std::string line;
@@ -388,8 +401,13 @@ std::size_t loadBalanceList(
         std::string balanceString = line.substr(seperatorPos + 1);
         BalanceValue btcValue = std::stod(balanceString);
 
-        balanceList.push_back(btcValue);
-        ++loadedCount;
+        if (btcValue > 0) {
+            balanceList.push_back(btcValue);
+            ++loadedCount;
+        }
+        else {
+            ++zeroEntityCount;
+        }
     }
 
     return loadedCount;
