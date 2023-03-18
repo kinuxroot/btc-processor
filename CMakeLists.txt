@@ -343,6 +343,19 @@ target_sources(
 )
 add_executable_deps(btc_gen_entity_distribution)
 
+add_executable(
+    btc_gen_block_info
+    src/btc_gen_block_info/main.cpp
+    src/btc_gen_block_info/logger.cpp
+)
+target_sources(
+    btc_gen_block_info
+    PRIVATE
+    include/btc_gen_block_info/logger.h
+)
+add_executable_deps(btc_gen_block_info)
+target_link_libraries(btc_gen_block_info nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -362,4 +375,5 @@ install(TARGETS
     btc_find_miner_tx_flow
     btc_addr_statistics
     btc_gen_entity_distribution
+    btc_gen_block_info
 )
