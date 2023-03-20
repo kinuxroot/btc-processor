@@ -389,4 +389,5 @@ install(TARGETS
     btc_addr_statistics
     btc_gen_entity_distribution
     btc_gen_block_info
+    btc_find_missed_blocks
 )
