@@ -356,6 +356,19 @@ target_sources(
 add_executable_deps(btc_gen_block_info)
 target_link_libraries(btc_gen_block_info nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_find_missed_blocks
+    src/btc_find_missed_blocks/main.cpp
+    src/btc_find_missed_blocks/logger.cpp
+)
+target_sources(
+    btc_find_missed_blocks
+    PRIVATE
+    include/btc_find_missed_blocks/logger.h
+)
+add_executable_deps(btc_find_missed_blocks)
+target_link_libraries(btc_find_missed_blocks nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
