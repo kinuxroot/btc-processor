@@ -9,6 +9,7 @@
 #include "utils/mem_utils.h"
 #include "utils/btc_utils.h"
 #include "fmt/format.h"
+#include <argparse/argparse.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -24,6 +25,9 @@
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
+
+
+static argparse::ArgumentParser createArgumentParser();
 
 void getUniqueAddressesOfDays(
     uint32_t workerIndex,
@@ -57,22 +61,25 @@ inline std::set<std::string> mergeUniqueAddresses(
     std::vector<std::set<std::string>>& tasksUniqueAddresses
 );
 
+inline void logUsedMemory();
+
 auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        std::cerr << "Invalid arguments!\n\nUsage: btc_gen_address <days_dir_list> <id2addr>\n" << std::endl;
+    auto argumentParser = createArgumentParser();
 
-        return EXIT_FAILURE;
-    }
-
-    const char* daysListFilePath = argv[1];
+    std::string daysListFilePath = argumentParser.get("days_dir_list");
     logger.info(fmt::format("Read tasks form {}", daysListFilePath));
+
+    std::string id2AddressFilePath = argumentParser.get("id2addr");
 
     const std::vector<std::string>& daysList = utils::readLines(daysListFilePath);
     logger.info(fmt::format("Read tasks count: {}", daysList.size()));
 
-    uint32_t workerCount = std::min(BTC_GEN_ADDRESS_WORKER_COUNT, std::thread::hardware_concurrency());
+    uint32_t workerCount = std::min(
+        argumentParser.get<uint32_t>("--worker_count"),
+        std::thread::hardware_concurrency()
+    );
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
@@ -101,14 +108,37 @@ int main(int argc, char* argv[]) {
 
     std::vector<std::set<std::string>> allUniqueAddresses;
     allUniqueAddresses.push_back(mergeUniqueAddresses("input", tasksInputUniqueAddresses));
+    logUsedMemory();
     allUniqueAddresses.push_back(mergeUniqueAddresses("output", tasksOutputUniqueAddresses));
+    logUsedMemory();
 
     const auto& id2Address = mergeUniqueAddresses("final", allUniqueAddresses);
+    logUsedMemory();
 
-    const char* id2AddressFilePath = argv[2];
-    utils::btc::dumpId2Address(id2AddressFilePath, id2Address);
+    logger.info(fmt::format("Dump address to {}", id2AddressFilePath));
+    utils::btc::dumpId2Address(id2AddressFilePath.c_str(), id2Address);
+    logUsedMemory();
 
     return EXIT_SUCCESS;
+}
+
+static argparse::ArgumentParser createArgumentParser() {
+    argparse::ArgumentParser program("btc_gen_address");
+
+    program.add_argument("days_dir_list")
+        .required()
+        .help("List file path of days directories");
+
+    program.add_argument("id2addr")
+        .required()
+        .help("Output file path of id2addr");
+
+    program.add_argument("--worker_count")
+        .help("Max worker count")
+        .scan<'d', uint32_t>()
+        .required();
+
+    return program;
 }
 
 void getUniqueAddressesOfDays(
@@ -234,4 +264,9 @@ inline std::set<std::string> mergeUniqueAddresses(
     logger.info(fmt::format("Remove duplicated addresses {}: {}", label, totalAddressCount - finalAddressSet.size()));
 
     return finalAddressSet;
+}
+
+inline void logUsedMemory() {
+    auto usedMemory = utils::mem::getAllocatedMemory();
+    logger.debug(fmt::format("Used memory: {}GB {}MB", usedMemory / 1024 / 1024, usedMemory / 1024));
 }
