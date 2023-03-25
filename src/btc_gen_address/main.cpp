@@ -67,6 +67,14 @@ auto& logger = getLogger();
 
 int main(int argc, char* argv[]) {
     auto argumentParser = createArgumentParser();
+    try {
+        argumentParser.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        logger.error(err.what());
+        std::cerr << argumentParser;
+        std::exit(1);
+    }
 
     std::string daysListFilePath = argumentParser.get("days_dir_list");
     logger.info(fmt::format("Read tasks form {}", daysListFilePath));
