@@ -228,6 +228,18 @@ add_executable_deps(btc_export_union_find)
 target_link_libraries(btc_export_union_find nlohmann_json::nlohmann_json)
 
 add_executable(
+    btc_textify_union_find
+    src/btc_textify_union_find/main.cpp
+    src/btc_textify_union_find/logger.cpp
+)
+target_sources(
+    btc_textify_union_find
+    PRIVATE
+    include/btc_textify_union_find/logger.h
+)
+add_executable_deps(btc_textify_union_find)
+
+add_executable(
     btc_gen_address_balance
     src/btc_gen_address_balance/main.cpp
     src/btc_gen_address_balance/logger.cpp
@@ -390,4 +402,5 @@ install(TARGETS
     btc_gen_entity_distribution
     btc_gen_block_info
     btc_find_missed_blocks
+    btc_textify_union_find
 )
