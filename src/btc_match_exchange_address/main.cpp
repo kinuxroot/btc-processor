@@ -3,6 +3,7 @@
 #include <argparse/argparse.hpp>
 
 #include "utils/io_utils.h"
+#include "utils/task_utils.h"
 #include "utils/mem_utils.h"
 #include "utils/union_find.h"
 #include "fmt/format.h"
@@ -20,8 +21,22 @@ struct ExchangeWalletEntry {
     BtcSize addressCount;
 };
 
+struct ExchangeWalletMatchResult {
+    std::string name;
+    std::string sampleAddress;
+    BtcSize addressCount;
+    BtcId clusterId;
+    BtcSize clusterSize;
+};
+
 static argparse::ArgumentParser createArgumentParser();
 static std::vector<ExchangeWalletEntry> readExchangeWalletEntries(const std::string& filePath);
+static std::vector<ExchangeWalletMatchResult> matchExchangeWalletEntries(
+    uint32_t workerIndex,
+    const std::vector<ExchangeWalletEntry>* entries,
+    const std::map<std::string, BtcId>* addr2Ids,
+    const utils::btc::WeightedQuickUnion* quickUnion
+);
 
 auto& logger = getLogger();
 
@@ -37,19 +52,9 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        //std::string id2AddressFilePath = argumentParser.get("id2addr");
-        //logger.info(fmt::format("Load address2Id from {}...", id2AddressFilePath));
-        //const auto& id2Address = utils::btc::loadId2Address(id2AddressFilePath.c_str());
-
-        //std::string unionFindFilePath = argumentParser.get("uf_file");
-        //utils::btc::WeightedQuickUnion quickUnion(1);
-        //quickUnion.load(unionFindFilePath);
-
-        //logger.info(fmt::format("Loaded ids: {}", quickUnion.getSize()));
-        //logger.info(fmt::format("Loaded cluster count: {}", quickUnion.getClusterCount()));
-
         std::string exchangeWalletFilePath = argumentParser.get("exchange_wallet_file");
         const auto& exchangeWalletEntries = readExchangeWalletEntries(exchangeWalletFilePath);
+        logUsedMemory();
 
         for (const auto& exchangeWalletEntry : exchangeWalletEntries) {
             std::cout << fmt::format("{},{},{}\n",
@@ -59,25 +64,61 @@ int main(int argc, char* argv[]) {
             );
         }
 
+        uint32_t workerCount = std::min(
+            argumentParser.get<uint32_t>("--worker_count"),
+            std::thread::hardware_concurrency()
+        );
+        logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
+        logger.info(fmt::format("Worker count: {}", workerCount));
 
-        //const char* outputFilePath = argv[2];
-        //std::ofstream outputFile(outputFilePath);
-        //logger.info(fmt::format("Dump union find result to: {}", outputFilePath));
+        const auto& taskChunks = utils::generateTaskChunks<ExchangeWalletEntry>(exchangeWalletEntries, workerCount);
 
-        //std::set<BtcId> exchangeRootAddresseIds;
-        //if (argc == 4) {
-        //    const char* exclusiveFilePath = argv[3];
-        //    std::vector<BtcId> addressIds = utils::readLines<std::vector<BtcId>, BtcId>(
-        //        exclusiveFilePath,
-        //        [](const std::string& line) -> BtcId {
-        //            return std::stoi(line);
-        //        }
-        //    );
+        std::string id2AddressFilePath = argumentParser.get("id2addr");
+        logger.info(fmt::format("Load address2Id from {}...", id2AddressFilePath));
+        const auto& addr2Ids = utils::btc::loadAddress2Id(id2AddressFilePath.c_str());
+        logUsedMemory();
 
-        //    for (BtcId addressId : addressIds) {
-        //        exchangeRootAddresseIds.insert(quickUnion.findRoot(addressId));
-        //    }
-        //}
+        std::string unionFindFilePath = argumentParser.get("uf_file");
+        utils::btc::WeightedQuickUnion quickUnion(1);
+        quickUnion.load(unionFindFilePath);
+
+        logger.info(fmt::format("Loaded ids: {}", quickUnion.getSize()));
+        logger.info(fmt::format("Loaded cluster count: {}", quickUnion.getClusterCount()));
+        logUsedMemory();
+
+        std::string outputFilePath = argumentParser.get("output_file");
+        std::ofstream outputFile(outputFilePath.c_str());
+
+        uint32_t workerIndex = 0;
+        std::vector<std::future<std::vector<ExchangeWalletMatchResult>>> tasks;
+        for (const auto& taskChunk : taskChunks) {
+            tasks.push_back(
+                std::async(matchExchangeWalletEntries, workerIndex, &taskChunk, &addr2Ids, &quickUnion)
+            );
+
+            ++workerIndex;
+        }
+        logUsedMemory();
+
+        logger.info(fmt::format("Dump result to: {}", outputFilePath));
+
+        std::vector<ExchangeWalletMatchResult> exchangeWalletResults;
+        for (auto& task : tasks) {
+            std::vector<ExchangeWalletMatchResult> currentResults = task.get();
+            for (const auto& currentResult : currentResults) {
+                outputFile << fmt::format("{} {} {} {} {}\n",
+                    currentResult.clusterSize,
+                    currentResult.addressCount,
+                    currentResult.sampleAddress,
+                    currentResult.clusterId,
+                    currentResult.clusterSize
+                );
+            }
+        }
+
+        logUsedMemory();
+
+        logUsedMemory();
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
@@ -131,6 +172,43 @@ std::vector<ExchangeWalletEntry> readExchangeWalletEntries(const std::string& fi
     }
 
     return entries;
+}
+
+static std::vector<ExchangeWalletMatchResult> matchExchangeWalletEntries(
+    uint32_t workerIndex,
+    const std::vector<ExchangeWalletEntry>* entries,
+    const std::map<std::string, BtcId>* addr2Ids,
+    const utils::btc::WeightedQuickUnion* quickUnion
+) {
+    std::vector<ExchangeWalletMatchResult> matchResults;
+    for (const auto& entry : *entries) {
+        auto addressIdIt = addr2Ids->find(entry.sampleAddress);
+        if (addressIdIt == addr2Ids->end()) {
+            logger.error(fmt::format("Can't find address: {}", entry.sampleAddress));
+
+            continue;
+        }
+
+        BtcId addressId = addressIdIt->second;
+        BtcId addressClusterId = quickUnion->findRoot(addressId);
+        BtcSize addressClusterSize = quickUnion->getClusterSize(addressClusterId);
+
+        if (addressClusterSize == 0) {
+            logger.error(fmt::format("Can't find cluster: {},{}", entry.sampleAddress, addressId));
+
+            continue;
+        }
+
+        matchResults.push_back(ExchangeWalletMatchResult {
+            .name = entry.name,
+            .sampleAddress = entry.sampleAddress,
+            .addressCount = entry.addressCount,
+            .clusterId = addressClusterId,
+            .clusterSize = addressClusterSize,
+        });
+    }
+
+    return matchResults;
 }
 
 inline void logUsedMemory() {

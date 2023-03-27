@@ -25,6 +25,7 @@ namespace utils::btc {
 
         bool connected(BtcId p, BtcId q);
         BtcId findRoot(BtcId p) const;
+        BtcSize getClusterSize(BtcId p) const;
         void connect(BtcId p, BtcId q);
         void merge(const WeightedQuickUnion& rhs);
         void save(const std::filesystem::path& path) const;

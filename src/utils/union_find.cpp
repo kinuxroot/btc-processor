@@ -28,6 +28,15 @@ namespace utils::btc {
         return p;
     }
 
+    BtcSize WeightedQuickUnion::getClusterSize(BtcId p) const {
+        auto pRoot = _ids[p];
+        if (pRoot != p) {
+            return 0;
+        }
+
+        return _sizes[p];
+    }
+
     void WeightedQuickUnion::connect(BtcId p, BtcId q) {
         auto pRoot = findRoot(p);
         auto qRoot = findRoot(q);
