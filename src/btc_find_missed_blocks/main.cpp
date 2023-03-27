@@ -109,7 +109,7 @@ static argparse::ArgumentParser createArgumentParser() {
         .required()
         .help("Output directory path of completed blocks");
 
-    program.add_argument("no_ext_block_output_dir")
+    program.add_argument("no_next_block_output_dir")
         .required()
         .help("Output directory path of no next blocks");
 
