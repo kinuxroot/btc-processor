@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
         const auto& exchangeWalletEntries = readExchangeWalletEntries(exchangeWalletFilePath);
 
         for (const auto& exchangeWalletEntry : exchangeWalletEntries) {
-            std::cout << fmt::format("{},{},{}",
+            std::cout << fmt::format("{},{},{}\n",
                 exchangeWalletEntry.name,
                 exchangeWalletEntry.addressCount,
                 exchangeWalletEntry.sampleAddress
