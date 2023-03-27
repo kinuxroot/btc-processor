@@ -33,10 +33,11 @@ static argparse::ArgumentParser createArgumentParser();
 void generateBlocksInfo(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    std::string completedBlockOutputDirPath
+    std::string completedBlockOutputDirPath,
+    std::string noNextBlockOutputDirPath
 );
 
-std::tuple<std::vector<uint32_t>> generateBlocksInfoOfDay(
+std::tuple<std::vector<uint32_t>, std::vector<uint32_t>> generateBlocksInfoOfDay(
     const std::string& dayDir,
     std::ofstream& completedBlockOutputFile
 );
@@ -72,6 +73,9 @@ int main(int argc, char* argv[]) {
     std::string completedBlockOutputDirPath = argumentParser.get("complete_block_output_dir");
     fs::create_directories(completedBlockOutputDirPath);
 
+    std::string noNextBlockOutputDirPath = argumentParser.get("no_next_block_output_dir");
+    fs::create_directories(noNextBlockOutputDirPath);
+
     logUsedMemory();
 
     uint32_t workerIndex = 0;
@@ -82,7 +86,8 @@ int main(int argc, char* argv[]) {
                 generateBlocksInfo,
                 workerIndex,
                 &taskChunk,
-                completedBlockOutputDirPath
+                completedBlockOutputDirPath,
+                noNextBlockOutputDirPath
             )
         );
 
@@ -104,6 +109,10 @@ static argparse::ArgumentParser createArgumentParser() {
         .required()
         .help("Output directory path of completed blocks");
 
+    program.add_argument("no_ext_block_output_dir")
+        .required()
+        .help("Output directory path of no next blocks");
+
     program.add_argument("--worker_count")
         .help("Max worker count")
         .scan<'d', uint32_t>()
@@ -115,13 +124,18 @@ static argparse::ArgumentParser createArgumentParser() {
 void generateBlocksInfo(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    std::string completedBlockOutputDirPath
+    std::string completedBlockOutputDirPath,
+    std::string noNextBlockOutputDirPath
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
 
     std::string completedBlockOutputFilePath = fmt::format("{}/{:0>2}.list", completedBlockOutputDirPath, workerIndex);
     std::cout << completedBlockOutputFilePath << std::endl;
     std::ofstream completedBlockOutputFile(completedBlockOutputFilePath);
+
+    std::string noNextBlockOutputFilePath = fmt::format("{}/{:0>2}.list", noNextBlockOutputDirPath, workerIndex);
+    std::cout << noNextBlockOutputFilePath << std::endl;
+    std::ofstream noNextBlockOutputFile(noNextBlockOutputFilePath);
 
     for (const auto& dayDir : *daysDirList) {
         const auto& dayBlocksInfo = generateBlocksInfoOfDay(dayDir, completedBlockOutputFile);
@@ -133,14 +147,23 @@ void generateBlocksInfo(
         }
         completedBlockOutputFile << completedBlockIndexesString;
         logger.info(fmt::format("Output completed block addresses: {}", completedBlockIndexes.size()));
+
+        const auto& noNextBlockIndexes = std::get<1>(dayBlocksInfo);
+        std::string noNextBlockIndexesString;
+        for (auto blockIndex : noNextBlockIndexes) {
+            noNextBlockIndexesString.append(std::to_string(blockIndex)).append("\n");
+        }
+        noNextBlockOutputFile << noNextBlockIndexesString;
+        logger.info(fmt::format("Output no next block addresses: {}", noNextBlockIndexes.size()));
     }
 }
 
-std::tuple<std::vector<uint32_t>> generateBlocksInfoOfDay(
+std::tuple<std::vector<uint32_t>, std::vector<uint32_t>> generateBlocksInfoOfDay(
     const std::string& dayDir,
     std::ofstream& completedBlockOutputFile
 ) {
     std::vector<uint32_t> completedBlockIndexes;
+    std::vector<uint32_t> noNextBlockIndexes;
 
     try {
         auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
@@ -149,7 +172,7 @@ std::tuple<std::vector<uint32_t>> generateBlocksInfoOfDay(
         std::ifstream convertedBlocksFile(convertedBlocksFilePath.c_str());
         if (!convertedBlocksFile.is_open()) {
             logger.warning(fmt::format("Finished process blocks by date because file not exists: {}", convertedBlocksFilePath));
-            return completedBlockIndexes;
+            return std::make_tuple(completedBlockIndexes, noNextBlockIndexes);
         }
 
         logUsedMemory();
@@ -162,6 +185,11 @@ std::tuple<std::vector<uint32_t>> generateBlocksInfoOfDay(
         for (const auto& block : blocks) {
             uint32_t blockIndex = utils::json::get(block, "block_index");
             completedBlockIndexes.push_back(blockIndex);
+
+            json nextHashes = utils::json::get(block, "next_block");
+            if (nextHashes.size() == 0) {
+                noNextBlockIndexes.push_back(blockIndex);
+            }
         }
 
         logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
@@ -173,7 +201,7 @@ std::tuple<std::vector<uint32_t>> generateBlocksInfoOfDay(
         logger.error(e.what());
     }
 
-    return completedBlockIndexes;
+    return std::make_tuple(completedBlockIndexes, noNextBlockIndexes);
 }
 
 inline void logUsedMemory() {
