@@ -381,6 +381,18 @@ target_sources(
 add_executable_deps(btc_find_missed_blocks)
 target_link_libraries(btc_find_missed_blocks nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_match_exchange_address
+    src/btc_match_exchange_address/main.cpp
+    src/btc_match_exchange_address/logger.cpp
+)
+target_sources(
+    btc_match_exchange_address
+    PRIVATE
+    include/btc_match_exchange_address/logger.h
+)
+add_executable_deps(btc_match_exchange_address)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -403,4 +415,5 @@ install(TARGETS
     btc_gen_block_info
     btc_find_missed_blocks
     btc_textify_union_find
+    btc_match_exchange_address
 )
