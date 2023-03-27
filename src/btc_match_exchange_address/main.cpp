@@ -107,11 +107,11 @@ int main(int argc, char* argv[]) {
             std::vector<ExchangeWalletMatchResult> currentResults = task.get();
             for (const auto& currentResult : currentResults) {
                 outputFile << fmt::format("{} {} {} {} {}\n",
+                    currentResult.name,
                     currentResult.clusterSize,
                     currentResult.addressCount,
                     currentResult.sampleAddress,
-                    currentResult.clusterId,
-                    currentResult.clusterSize
+                    currentResult.clusterId
                 );
             }
         }
