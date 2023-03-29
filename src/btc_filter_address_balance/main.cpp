@@ -230,20 +230,20 @@ void processAddressBalanceOfYears(
     for (const std::string& addressBalanceFilePath : *addressBalanceFilePaths) {
         auto entityBalanceFilePath = outputBaseDirPath / fs::path(addressBalanceFilePath).filename();
 
-        //if (fs::exists(entityBalanceFilePath)) {
-        //    logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath.string()));
+        if (fs::exists(entityBalanceFilePath)) {
+            logger.info(fmt::format("Skip existed entityBalanceFilePath: {}", entityBalanceFilePath.string()));
 
-        //    return;
-        //}
+            return;
+        }
 
-        //processYearAddressBalance(
-        //    addressBalanceFilePath,
-        //    entityBalanceFilePath.string(),
-        //    *quickUnion,
-        //    *excludeAddresses
-        //);
+        processYearAddressBalance(
+            addressBalanceFilePath,
+            entityBalanceFilePath.string(),
+            *quickUnion,
+            *excludeAddresses
+        );
 
-        checkYearAddressBalance(addressBalanceFilePath);
+        //checkYearAddressBalance(addressBalanceFilePath);
     }
 }
 
@@ -283,7 +283,7 @@ void processYearAddressBalance(
             logger.error(fmt::format("Entity id {} is greater than balance array size: {}", entityId, balanceList.size()));
             continue;
         }
-        clusterBalances.at(entityId) += balance;
+        clusterBalances.at(entityId) += std::max(0.0, balance);
 
         ++currentAddressId;
     }
