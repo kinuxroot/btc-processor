@@ -94,6 +94,8 @@ void dumpCountList(
 
 void dumpSummary(
     const std::string& outputFilePath,
+    size_t allAddressCount,
+    size_t allEntityCount,
     size_t newAddressCount,
     size_t newEntityCount,
     size_t activateEntityCount
@@ -244,7 +246,13 @@ int main(int argc, char* argv[]) {
         dumpCountList(entityOutputFilePath.string(), prevEntityCountList);
 
         auto summaryOutputFilePath = summaryOutputBaseDirPath / year;
-        dumpSummary(summaryOutputFilePath.string(), newAddressCount, newEntityCount, activateEntityCount);
+        dumpSummary(summaryOutputFilePath.string(),
+            currentAddressCount,
+            currentEntityCount,
+            newAddressCount,
+            newEntityCount,
+            activateEntityCount
+        );
     }
 
     return EXIT_SUCCESS;
@@ -485,6 +493,8 @@ void dumpCountList(
 
 void dumpSummary(
     const std::string& outputFilePath,
+    size_t allAddressCount,
+    size_t allEntityCount,
     size_t newAddressCount,
     size_t newEntityCount,
     size_t activateEntityCount
@@ -492,6 +502,8 @@ void dumpSummary(
     logger.info(fmt::format("Dump summary to: {}", outputFilePath));
 
     std::ofstream outputFile(outputFilePath.c_str());
+    outputFile << fmt::format("All addresses: {}\n", allEntityCount);
+    outputFile << fmt::format("All entities: {}\n", allAddressCount);
     outputFile << fmt::format("New addresses: {}\n", newAddressCount);
     outputFile << fmt::format("New entities: {}\n", newEntityCount);
     outputFile << fmt::format("Activate entities: {}\n", activateEntityCount);
