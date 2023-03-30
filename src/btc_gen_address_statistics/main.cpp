@@ -293,7 +293,7 @@ groupDaysListByYears(const std::vector<std::string>& daysList, uint32_t startYea
         const std::string& dirName = dayDirPath.filename().string();
         const auto& year = dirName.substr(0, 4);
         const auto yearValue = std::stoi(year);
-        if ((startYear == 0 || yearValue < startYear) || (endYear == 0 || yearValue > endYear)) {
+        if ((startYear > 0 && yearValue < startYear) || (endYear > 0 && yearValue > endYear)) {
             continue;
         }
 
