@@ -170,7 +170,8 @@ int main(int argc, char* argv[]) {
         logger.info(fmt::format("\n\n======================== Process year: {} ========================\n", year));
 
         auto addressOutputFilePath = addressOutputBaseDirPath / year;
-        if (fs::exists(addressOutputFilePath)) {
+        auto entityOutputFilePath = entityOutputBaseDirPath / year;
+        if (fs::exists(addressOutputFilePath) && fs::exists(entityOutputFilePath)) {
             logger.info(fmt::format("Load existed file", year));
             auto loadedCount = loadCountList(addressOutputFilePath.string(), prevAddressCountList);
             prevAddressCount = std::count_if(
@@ -179,18 +180,16 @@ int main(int argc, char* argv[]) {
             logger.info(fmt::format("Loaded {} records of year {}", loadedCount, year));
             logUsedMemory();
 
-            continue;
-        }
-
-        auto entityOutputFilePath = entityOutputBaseDirPath / year;
-        if (fs::exists(addressOutputFilePath)) {
             logger.info(fmt::format("Load existed file", year));
-            auto loadedCount = loadCountList(entityOutputBaseDirPath.string(), prevEntityCountList);
+            loadedCount = loadCountList(entityOutputFilePath.string(), prevEntityCountList);
             prevEntityCount = std::count_if(
                 std::execution::par, prevEntityCountList.begin(), prevEntityCountList.end(), CountPredicator
             );
             logger.info(fmt::format("Loaded {} records of year {}", loadedCount, year));
             logUsedMemory();
+
+            logger.info(fmt::format("Loaded address count: {}", prevAddressCount));
+            logger.info(fmt::format("Loaded entity count: {}", prevEntityCount));
 
             continue;
         }
@@ -502,8 +501,8 @@ void dumpSummary(
     logger.info(fmt::format("Dump summary to: {}", outputFilePath));
 
     std::ofstream outputFile(outputFilePath.c_str());
-    outputFile << fmt::format("All addresses: {}\n", allEntityCount);
-    outputFile << fmt::format("All entities: {}\n", allAddressCount);
+    outputFile << fmt::format("All addresses: {}\n", allAddressCount);
+    outputFile << fmt::format("All entities: {}\n", allEntityCount);
     outputFile << fmt::format("New addresses: {}\n", newAddressCount);
     outputFile << fmt::format("New entities: {}\n", newEntityCount);
     outputFile << fmt::format("Activate entities: {}\n", activateEntityCount);
