@@ -24,12 +24,16 @@
 #include <thread>
 #include <iostream>
 #include <map>
+#include <limits>
 #include <iomanip>
 #include <algorithm>
 #include <execution>
 
 using json = nlohmann::json;
 using CountList = std::vector<uint8_t>;
+using EntityYearList = std::vector<int16_t>;
+
+const auto INVALID_ENTITY_YEAR = std::numeric_limits<int16_t>::min();
 
 namespace fs = std::filesystem;
 
@@ -90,6 +94,11 @@ std::size_t loadCountList(
 void dumpCountList(
     const std::string& outputFilePath,
     CountList& countList
+);
+
+void dumpYearList(
+    const std::string& outputFilePath,
+    EntityYearList& yearList
 );
 
 void dumpSummary(
@@ -159,6 +168,8 @@ int main(int argc, char* argv[]) {
     CountList prevEntityCountList(quickUnion.getSize(), 0);
     size_t prevEntityCount = 0;
 
+    EntityYearList entityYearList(quickUnion.getSize(), INVALID_ENTITY_YEAR);
+
     const auto CountPredicator = [](uint8_t value) {
         return value > 0;
     };
@@ -190,6 +201,14 @@ int main(int argc, char* argv[]) {
 
             logger.info(fmt::format("Loaded address count: {}", prevAddressCount));
             logger.info(fmt::format("Loaded entity count: {}", prevEntityCount));
+
+            int16_t yearValue = static_cast<int16_t>(std::stoi(year));
+            logger.info(fmt::format("Calculate entity year for {}", year));
+            for (std::size_t addressId = 0; addressId != prevEntityCountList.size(); ++addressId) {
+                if (entityYearList[addressId] == INVALID_ENTITY_YEAR && prevEntityCountList[addressId]) {
+                    entityYearList[addressId] = yearValue;
+                }
+            }
 
             continue;
         }
@@ -252,7 +271,19 @@ int main(int argc, char* argv[]) {
             newEntityCount,
             activateEntityCount
         );
+
+        int16_t yearValue = static_cast<int16_t>(std::stoi(year));
+        logger.info(fmt::format("Calculate entity year for {}", year));
+        for (std::size_t addressId = 0; addressId != currentEntityCountList.size(); ++addressId) {
+            if (entityYearList[addressId] == INVALID_ENTITY_YEAR && currentEntityCountList[addressId]) {
+                entityYearList[addressId] = yearValue;
+            }
+        }
     }
+
+    fs::path yearOutputFilePath = fs::path(outputBaseDirPath) / "entity-year.out";
+
+    dumpYearList(yearOutputFilePath.string(), entityYearList);
 
     return EXIT_SUCCESS;
 }
@@ -336,7 +367,11 @@ void generateAddressStatisticsOfDays(
 
     for (const auto& dayDir : *daysDirList) {
         calculateAddressStatisticsOfDays(
-            dayDir, *quickUnion, *addressCountList, *entityCountList, *activateEntityCountList
+            dayDir,
+            *quickUnion,
+            *addressCountList,
+            *entityCountList,
+            *activateEntityCountList
         );
     }
 }
@@ -367,7 +402,11 @@ void calculateAddressStatisticsOfDays(
 
         for (const auto& block : blocks) {
             calculateAddressStatisticsOfBlock(
-                block, quickUnion, addressCountList, entityCountList, activateEntityCountList
+                block,
+                quickUnion,
+                addressCountList,
+                entityCountList,
+                activateEntityCountList
             );
         }
 
@@ -430,7 +469,13 @@ void calculateAddressStatisticsOfTx(
                 continue;
             }
             BtcId addressId = addrItem.value();
-            processAddress(addressId, quickUnion, addressCountList, entityCountList, activateEntityCountList);
+            processAddress(
+                addressId,
+                quickUnion,
+                addressCountList,
+                entityCountList,
+                activateEntityCountList
+            );
         }
 
         auto& outputs = utils::json::get(tx, "out");
@@ -488,6 +533,19 @@ void dumpCountList(
     std::size_t countSize = countList.size();
     outputFile.write(reinterpret_cast<char*>(&countSize), sizeof(countSize));
     outputFile.write(reinterpret_cast<const char*>(countList.data()), countSize);
+}
+
+void dumpYearList(
+    const std::string& outputFilePath,
+    EntityYearList& yearList
+) {
+    logger.info(fmt::format("Dump entity year to: {}", outputFilePath));
+
+    std::ofstream outputFile(outputFilePath.c_str(), std::ios::binary);
+
+    std::size_t yearSize = yearList.size();
+    outputFile.write(reinterpret_cast<char*>(&yearSize), sizeof(yearSize));
+    outputFile.write(reinterpret_cast<const char*>(yearList.data()), yearSize * sizeof(int16_t));
 }
 
 void dumpSummary(
