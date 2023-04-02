@@ -302,14 +302,17 @@ void processYearEntityBalance(
     balanceList.reserve(initialBufferSize);
     std::size_t zeroEntityCount = 0;
     loadBalanceList(entityBalanceFilePath, balanceList, zeroEntityCount);
+    logUsedMemory();
     std::size_t nonzeroEntityCount = balanceList.size() - zeroEntityCount;
 
     CountList entityCountList;
     loadCountList(entityCountListFilePath, entityCountList);
+    logUsedMemory();
 
     const auto& sortedBalanceList = sortBalanceList(
         balanceList, entityCountList, nonzeroEntityCount
     );
+    logUsedMemory();
 
     generateEntityAverageBalance(entityBalanceFilePathPrefix + ".avgs", sortedBalanceList);
     generateRichestEntites(entityBalanceFilePathPrefix + ".richest", entityYearList, sortedBalanceList);
@@ -542,6 +545,7 @@ SortedBalanceList sortBalanceList(
 
     SortedBalanceList sortedBalanceList;
     sortedBalanceList.reserve(initialEntityCount);
+    logUsedMemory();
 
     size_t addressId = 0;
     for (auto countValue : entityCountList) {
@@ -551,6 +555,7 @@ SortedBalanceList sortBalanceList(
 
         ++addressId;
     }
+    logUsedMemory();
 
     logger.info(fmt::format("Begin to sort entities: {}", sortedBalanceList.size()));
     std::sort(sortedBalanceList.begin(), sortedBalanceList.end(),
