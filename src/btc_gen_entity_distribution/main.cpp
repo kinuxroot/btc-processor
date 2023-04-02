@@ -541,7 +541,7 @@ SortedBalanceList sortBalanceList(
     const CountList& entityCountList,
     std::size_t initialEntityCount
 ) {
-    logger.info(fmt::format("Sorted balance list with initial count: {}", initialEntityCount));
+    logger.info(fmt::format("Sort balance list with initial count: {}", initialEntityCount));
 
     SortedBalanceList sortedBalanceList;
     sortedBalanceList.reserve(initialEntityCount);
@@ -559,7 +559,7 @@ SortedBalanceList sortBalanceList(
 
     logger.info(fmt::format("Begin to sort entities: {}", sortedBalanceList.size()));
     std::sort(sortedBalanceList.begin(), sortedBalanceList.end(),
-        [](const auto& lhs, const auto& rhs) {
+        [](auto lhs, auto rhs) {
             return rhs.second - lhs.second;
         }
     );
