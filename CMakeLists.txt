@@ -344,6 +344,18 @@ add_executable_deps(btc_convert_address_balance)
 target_link_libraries(btc_convert_address_balance nlohmann_json::nlohmann_json)
 
 add_executable(
+    btc_convert_entity_balance
+    src/btc_convert_entity_balance/main.cpp
+    src/btc_convert_entity_balance/logger.cpp
+)
+target_sources(
+    btc_convert_entity_balance
+    PRIVATE
+    include/btc_convert_entity_balance/logger.h
+)
+add_executable_deps(btc_convert_entity_balance)
+
+add_executable(
     btc_gen_entity_distribution
     src/btc_gen_entity_distribution/main.cpp
     src/btc_gen_entity_distribution/logger.cpp
@@ -418,6 +430,7 @@ install(TARGETS
     btc_export_union_find
     btc_gen_address_balance
     btc_convert_address_balance
+    btc_convert_entity_balance
     btc_filter_address_balance
     btc_convert_exchanges
     btc_uf_exchanges
