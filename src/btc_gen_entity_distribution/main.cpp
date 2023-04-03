@@ -402,7 +402,7 @@ void generateRichestEntites(
     logger.info(fmt::format("Output richest entities balance to {}", richestEntitiesFilePath));
     outputFile << "Rank,Entity,Balance,Year" << std::endl;
 
-    std::size_t maxEntityCount = std::max(balanceList.size(), static_cast<std::size_t>(10000));
+    std::size_t maxEntityCount = std::min(balanceList.size(), static_cast<std::size_t>(10000));
     for (uint32_t entityRank = 0; entityRank != maxEntityCount; ++entityRank) {
         const auto& entityBalanceItem = balanceList[entityRank];
 
