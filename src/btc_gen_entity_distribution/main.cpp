@@ -386,7 +386,7 @@ void generateEntityAverageBalance(
         outputFile << fmt::format(
             "{},{},{},{},{:.19g}",
             startPercent, startPercent + 1, startIndex, endIndex,
-            averageBalance
+            segmentAverageBalance
         ) << std::endl;
     }
 }
