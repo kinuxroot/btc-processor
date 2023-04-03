@@ -26,6 +26,20 @@ using SortedBalanceItem = std::pair<std::size_t, BalanceValue>;
 using SortedBalanceList = std::vector<SortedBalanceItem>;
 using CountList = std::vector<uint8_t>;
 
+int compareBalanceItem(const void* x, const void* y) {
+    const SortedBalanceItem lhs = *static_cast<const SortedBalanceItem*>(x);
+    const SortedBalanceItem rhs = *static_cast<const SortedBalanceItem*>(y);
+
+    if (rhs.second > lhs.second) {
+        return 1;
+    }
+    else if (rhs.second < lhs.second) {
+        return -1;
+    }
+
+    return 0;
+}
+
 const auto INVALID_ENTITY_YEAR = std::numeric_limits<int16_t>::min();
 
 inline void logUsedMemory();
@@ -558,11 +572,12 @@ SortedBalanceList sortBalanceList(
     logUsedMemory();
 
     logger.info(fmt::format("Begin to sort entities: {}", sortedBalanceList.size()));
-    std::sort(sortedBalanceList.begin(), sortedBalanceList.end(),
-        [](auto lhs, auto rhs) {
-            return rhs.second - lhs.second;
-        }
-    );
+    //std::sort(sortedBalanceList.begin(), sortedBalanceList.end(),
+    //    [](auto lhs, auto rhs) {
+    //        return rhs.second - lhs.second;
+    //    }
+    //);
+    qsort(sortedBalanceList.data(), sortedBalanceList.size(), sizeof(SortedBalanceItem), compareBalanceItem);
     logger.info(fmt::format("Finished sort entities: {}", sortedBalanceList.size()));
 
     return sortedBalanceList;
