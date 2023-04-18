@@ -563,7 +563,8 @@ SortedBalanceList sortBalanceList(
 
     size_t addressId = 0;
     for (auto countValue : entityCountList) {
-        if (countValue > 0) {
+        // 此处会删除余额为0的实体
+        if (countValue > 0 && balanceList[addressId] > 0) {
             sortedBalanceList.push_back(std::make_pair(addressId, balanceList[addressId]));
         }
 
