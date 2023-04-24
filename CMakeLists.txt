@@ -418,6 +418,19 @@ target_sources(
 add_executable_deps(btc_gen_address_statistics)
 target_link_libraries(btc_gen_address_statistics nlohmann_json::nlohmann_json)
 
+add_executable(
+    btc_gen_block_statistics
+    src/btc_gen_block_statistics/main.cpp
+    src/btc_gen_block_statistics/logger.cpp
+)
+target_sources(
+    btc_gen_block_statistics
+    PRIVATE
+    include/btc_gen_block_statistics/logger.h
+)
+add_executable_deps(btc_gen_block_statistics)
+target_link_libraries(btc_gen_block_statistics nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -443,4 +456,5 @@ install(TARGETS
     btc_textify_union_find
     btc_match_exchange_address
     btc_gen_address_statistics
+    btc_gen_block_statistics
 )
