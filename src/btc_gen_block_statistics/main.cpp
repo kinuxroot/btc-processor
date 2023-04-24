@@ -157,7 +157,9 @@ groupDaysListByYears(const std::vector<std::string>& daysList, uint32_t startYea
     });
 
     for (auto& yearDays : groupedDaysList) {
+        logger.info(fmt::format("Last year before sort: {} {}", yearDays.first, yearDays.second.back()));
         std::sort(yearDays.second.begin(), yearDays.second.end());
+        logger.info(fmt::format("Last year after sort: {} {}", yearDays.first, yearDays.second.back()));
     }
 
     return groupedDaysList;
