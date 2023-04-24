@@ -196,6 +196,8 @@ uint64_t calculateBlockStatisticsOfDays(
     catch (const std::exception& e) {
         logger.error(fmt::format("Error when process blocks by date: {}", dayDir));
         logger.error(e.what());
+
+        return 0;
     }
 }
 
@@ -212,6 +214,8 @@ uint64_t calculateBlockStatisticsOfBlock(
     catch (std::exception& e) {
         logger.error(fmt::format("Error when process block {}", blockHash));
         logger.error(e.what());
+
+        return 0;
     }
 }
 
