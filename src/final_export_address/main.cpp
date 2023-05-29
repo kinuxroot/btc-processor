@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
         std::string minerTxJsonFilePath = argumentParser.get("--miner_json");
         logger.info("Load miner json...");
         const auto& minerAddressIds = parseMinerAddressIds(minerTxJsonFilePath);
-        logger.info(fmt::format("Found miner address ids: {} {}", minerAddressIds.size()));
+        logger.info(fmt::format("Found miner address ids: {}", minerAddressIds.size()));
 
         logUsedMemory();
 
@@ -110,7 +110,7 @@ std::set<BtcId> parseMinerAddressIds(const std::string& minerTxJsonFilePath) {
     json minerTxsListJson;
     minerTxJsonFile >> minerTxsListJson;
 
-    logger.info(fmt::format("Loaded miner tx json count: {} {}", minerTxsListJson.size()));
+    logger.info(fmt::format("Loaded miner tx json count: {}", minerTxsListJson.size()));
     logUsedMemory();
 
     for (const auto& minerTxJson : minerTxsListJson) {
