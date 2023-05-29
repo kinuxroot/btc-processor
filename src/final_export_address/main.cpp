@@ -129,7 +129,7 @@ std::set<BtcId> parseMinerAddressIds(const std::string& minerTxJsonFilePath) {
         uint64_t txId = minerTxJson[0];
         json tx = minerTxJson[1];
 
-        const auto& outputs = utils::json::get(tx, "out");
+        const auto& outputs = utils::json::get(tx, "outputs");
         if (!outputs.is_array()) {
             throw std::invalid_argument("outputs must be an array");
         }
