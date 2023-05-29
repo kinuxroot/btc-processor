@@ -63,6 +63,8 @@ int main(int argc, char* argv[]) {
         for (const std::string& address : address2Id) {
             bool isMinerAddress = minerAddressIds.find(addressId) != minerAddressIds.end();
             outputFile << fmt::format("{},{}", address, isMinerAddress) << std::endl;
+
+            addressId++;
         }
 
         logUsedMemory();
