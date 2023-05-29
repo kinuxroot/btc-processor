@@ -1,3 +1,5 @@
+// 挖掘矿工的交易，可以获取所有矿工的地址
+
 #include "btc-config.h"
 #include "btc_collect_miner_tx/logger.h"
 
@@ -53,11 +55,6 @@ MinerTxsPtr mergeTxsList(
 void dumpMinerTxs(
     const char* filePath,
     const MinerTxsPtr& minerTxsList
-);
-
-json toMinerTx(
-    const std::string& dayDir,
-    const json& tx
 );
 
 inline void logUsedMemory();
@@ -195,32 +192,6 @@ void generateMinerTxOfBlock(
     catch (std::exception& e) {
         logger.error(fmt::format("Error when process block {}:{}", dayDir, blockHash));
         logger.error(e.what());
-    }
-}
-
-json toMinerTx(
-    const std::string& dayDir,
-    const json& tx
-) {
-    std::string txHash = utils::json::get(tx, "hash");
-
-    try {
-        const auto& outputs = utils::json::get(tx, "out");
-        if (!outputs.is_array()) {
-            throw std::invalid_argument("outputs must be an array");
-        }
-
-        if (!outputs.size()) {
-            throw std::invalid_argument("outputs must have elements");
-        }
-
-        return outputs;
-    }
-    catch (std::exception& e) {
-        logger.error(fmt::format("Error when process tx {}:{}", dayDir, txHash));
-        logger.error(e.what());
-
-        std::rethrow_exception(std::current_exception());
     }
 }
 

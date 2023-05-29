@@ -1,3 +1,5 @@
+// 将文本格式的余额列表转换成二进制余额列表
+
 #include "btc-config.h"
 #include "btc_convert_entity_balance/logger.h"
 

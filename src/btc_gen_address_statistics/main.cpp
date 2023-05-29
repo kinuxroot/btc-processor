@@ -1,3 +1,5 @@
+// 生成每年的新地址数量、新实体数量、活跃用户（实体）数量
+
 #include "btc-config.h"
 #include "btc_gen_address_statistics/logger.h"
 

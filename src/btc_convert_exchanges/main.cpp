@@ -1,3 +1,5 @@
+// 将交易所地址转换成地址ID
+
 #include "btc-config.h"
 #include "btc_convert_exchanges/logger.h"
 
