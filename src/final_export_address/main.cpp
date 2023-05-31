@@ -55,13 +55,33 @@ int main(int argc, char* argv[]) {
 
         logUsedMemory();
 
+        std::string quickUnionFilePath = argumentParser.get("--uf_file");
+        utils::btc::WeightedQuickUnion quickUnion(1);
+        std::set<BtcId> expandedAddressIds = minerAddressIds;
+        logUsedMemory();
+        if (!quickUnionFilePath.empty()) {
+            logger.info(fmt::format("Loaded quick union file: {}", quickUnionFilePath));
+            quickUnion.load(quickUnionFilePath);
+            auto addressCount = address2Id.size();
+
+            for (BtcId addressIndex = 0; addressIndex != addressCount; ++addressIndex) {
+                auto rootAddressId = quickUnion.findRoot(addressIndex);
+                if (minerAddressIds.find(rootAddressId) != minerAddressIds.end()) {
+                    expandedAddressIds.insert(addressIndex);
+                }
+            }
+        }
+        logger.info(fmt::format("Expand miner address ids: {}", expandedAddressIds.size()));
+
+        logUsedMemory();
+
         std::string outputFilePath = argumentParser.get("output_file");
         std::ofstream outputFile(outputFilePath);
         outputFile << "Address,IsMiner" << std::endl;
 
         BtcId addressId = 0;
         for (const std::string& address : address2Id) {
-            bool isMinerAddress = minerAddressIds.find(addressId) != minerAddressIds.end();
+            bool isMinerAddress = expandedAddressIds.find(addressId) != expandedAddressIds.end();
             outputFile << fmt::format("{},{}", address, isMinerAddress) << std::endl;
 
             addressId++;
@@ -92,10 +112,16 @@ static argparse::ArgumentParser createArgumentParser() {
         .help("The JSON file of miner txs")
         .default_value("");
 
+    program.add_argument("--uf_file")
+        .help("The Union find file path")
+        .default_value("");
+
     return program;
 }
 
-std::set<BtcId> parseMinerAddressIds(const std::string& minerTxJsonFilePath) {
+std::set<BtcId> parseMinerAddressIds(
+    const std::string& minerTxJsonFilePath
+) {
     std::set<BtcId> minerAddressIds;
 
     if (minerTxJsonFilePath.empty()) {
