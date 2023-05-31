@@ -57,19 +57,31 @@ int main(int argc, char* argv[]) {
 
         std::string quickUnionFilePath = argumentParser.get("--uf_file");
         utils::btc::WeightedQuickUnion quickUnion(1);
+        std::set<BtcId> rootIds;
         std::set<BtcId> expandedAddressIds = minerAddressIds;
         logUsedMemory();
         if (!quickUnionFilePath.empty()) {
-            logger.info(fmt::format("Loaded quick union file: {}", quickUnionFilePath));
+            logger.info(fmt::format("Load quick union file: {}", quickUnionFilePath));
             quickUnion.load(quickUnionFilePath);
-            auto addressCount = address2Id.size();
+            logger.info(fmt::format("Loaded quick union file: {}", quickUnionFilePath));
 
+            // 计算矿工用户集合
+            logger.info(fmt::format("Computing miner users"));
+            for (BtcId minerAddressId : minerAddressIds) {
+                rootIds.insert(quickUnion.findRoot(minerAddressId));
+            }
+            logger.info(fmt::format("Finished computing miner users: {}", rootIds.size()));
+
+            // 计算矿工地址集合
+            logger.info(fmt::format("Computing miner addresses"));
+            auto addressCount = address2Id.size();
             for (BtcId addressIndex = 0; addressIndex != addressCount; ++addressIndex) {
                 auto rootAddressId = quickUnion.findRoot(addressIndex);
-                if (minerAddressIds.find(rootAddressId) != minerAddressIds.end()) {
+                if (rootIds.find(rootAddressId) != rootIds.end()) {
                     expandedAddressIds.insert(addressIndex);
                 }
             }
+            logger.info(fmt::format("Finished computing miner addresses"));
         }
         logger.info(fmt::format("Expand miner address ids: {}", expandedAddressIds.size()));
 
