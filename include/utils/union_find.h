@@ -63,4 +63,11 @@ namespace utils::btc {
     private:
         const WeightedQuickUnion& _quickUnion;
     };
+
+    class ClusterLabels {
+    public:
+        bool isMiner;
+        bool isLabeldExchange;
+        bool isFoundExchange;
+    };
 };
