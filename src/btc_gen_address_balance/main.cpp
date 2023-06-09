@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
             taskResult.reset();
         }
 
-        dumpBalanceList(outputFilePath, balanceList);
+        //dumpBalanceList(outputFilePath, balanceList);
         dumpBinaryBalanceList(binaryOutputFilePath, balanceList);
     }
 
