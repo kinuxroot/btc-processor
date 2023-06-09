@@ -470,6 +470,19 @@ target_sources(
 add_executable_deps(final_export_address_statistics)
 target_link_libraries(final_export_address_statistics nlohmann_json::nlohmann_json)
 
+add_executable(
+    final_export_entity_balance
+    src/final_export_entity_balance/main.cpp
+    src/final_export_entity_balance/logger.cpp
+)
+target_sources(
+    final_export_entity_balance
+    PRIVATE
+    include/final_export_entity_balance/logger.h
+)
+add_executable_deps(final_export_entity_balance)
+target_link_libraries(final_export_entity_balance nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -499,4 +512,5 @@ install(TARGETS
     final_export_address
     final_export_entity
     final_export_address_statistics
+    final_export_entity_balance
 )
