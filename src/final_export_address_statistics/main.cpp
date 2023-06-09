@@ -706,7 +706,7 @@ void dumpActivateEntityFile(
                 bool isLabeldExchange = clusterLabel.isLabeldExchange;
                 bool isFoundExchange = clusterLabel.isFoundExchange;
 
-                newEntityFile << fmt::format("{},{},{},{},{}",
+                newEntityFile << fmt::format("{},{},{},{}",
                     entityId, isMiner, isLabeldExchange, isFoundExchange
                 ) << std::endl;
             }
