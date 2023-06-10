@@ -333,7 +333,7 @@ void dumpCountList(
 
     std::size_t countSize = countList.size();
     outputFile.write(reinterpret_cast<char*>(&countSize), sizeof(countSize));
-    outputFile.write(reinterpret_cast<const char*>(countList.data()), countSize * sizeof(countList[0]));
+    outputFile.write(reinterpret_cast<const char*>(countList.data()), countSize);
 }
 
 inline void logUsedMemory() {
