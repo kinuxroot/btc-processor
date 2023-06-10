@@ -318,9 +318,13 @@ void calculateAddressStatisticsOfTx(
             if (addrItem == prevOut.cend()) {
                 continue;
             }
+
             BtcId addressId = addrItem.value();
             BtcId clusterId = quickUnion.findRoot(addressId);
-            ++ txCountsList->at(clusterId).first;
+            ++txCountsList->at(clusterId).first;
+
+            // 只计算第一笔input，因为所有input都是同一个用户的
+            break;
         }
 
         auto& outputs = utils::json::get(tx, "out");
