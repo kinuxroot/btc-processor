@@ -652,6 +652,7 @@ std::size_t loadCountList(
     inputFile.read(reinterpret_cast<char*>(&loadedCount), sizeof(loadedCount));
     countList.resize(loadedCount);
     inputFile.read(reinterpret_cast<char*>(countList.data()), countList.size());
+    logger.info(fmt::format("Loaded {} count from: {}", countList.size(), inputFilePath));
 
     return loadedCount;
 }
