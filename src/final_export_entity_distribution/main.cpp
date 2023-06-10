@@ -311,7 +311,7 @@ void processEntityBalanceOfYears(
 
     for (const auto& entityBalanceYearItem : *entityBalanceYearItems) {
         auto year = entityBalanceYearItem.first;
-        auto entityCountListFilePath = fs::path(addressReportBaseDir) / "entity" / std::to_string(year);
+        auto entityCountListFilePath = fs::path(addressReportBaseDir) / "entity" / (std::to_string(year) + ".new");
 
         const auto& entityBalanceFilePath = entityBalanceYearItem.second;
         auto entityBalanceFilePathPrefix = outputBaseDirPath / fs::path(entityBalanceFilePath).filename();
