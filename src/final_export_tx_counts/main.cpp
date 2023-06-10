@@ -162,6 +162,7 @@ static argparse::ArgumentParser createArgumentParser() {
 
     program.add_argument("--address_count")
         .help("address file")
+        .scan<'d', uint32_t>()
         .required();
 
     program.add_argument("-w", "--worker_count")
