@@ -113,18 +113,16 @@ int main(int argc, char* argv[]) {
     uint32_t workerIndex = 0;
     std::vector<std::future<std::unique_ptr<TxCountsList>>> tasks;
     for (const auto& taskChunk : taskChunks) {
-        for (const auto& taskChunk : taskChunks) {
-            tasks.push_back(
-                std::async(
-                    generateAddressStatisticsOfDays,
-                    workerIndex,
-                    &taskChunk,
-                    addressCount
-                )
-            );
+        tasks.push_back(
+            std::async(
+                generateAddressStatisticsOfDays,
+                workerIndex,
+                &taskChunk,
+                addressCount
+            )
+        );
 
-            ++workerIndex;
-        }
+        ++workerIndex;
     }
 
     logger.info("Try to merge tx counts list");
