@@ -51,22 +51,25 @@ static argparse::ArgumentParser createArgumentParser();
 std::unique_ptr<TxCountsList> generateAddressStatisticsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    BtcId addressCount
+    utils::btc::WeightedQuickUnion* quickUnion
 );
 
 void calculateAddressStatisticsOfDays(
     const std::string& dayDir,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 );
 
 void calculateAddressStatisticsOfBlock(
     const json& block,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 );
 
 void calculateAddressStatisticsOfTx(
     const json& tx,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 );
 
 void dumpCountList(
@@ -104,8 +107,15 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
-    auto addressCount = argumentParser.get<uint32_t>("--address_count");
-    logger.info(fmt::format("Using address count: {}", addressCount));
+    logUsedMemory();
+
+    const std::string ufFilePath = argumentParser.get("--union_file");
+    utils::btc::WeightedQuickUnion quickUnion(1);
+    logger.info(fmt::format("Load quickUnion from {}", ufFilePath));
+    quickUnion.load(ufFilePath);
+    logger.info(fmt::format("Loaded quickUnion {} items from {}", quickUnion.getSize(), ufFilePath));
+
+    BtcId addressCount = quickUnion.getSize();
 
     logUsedMemory();
 
@@ -118,7 +128,7 @@ int main(int argc, char* argv[]) {
                 generateAddressStatisticsOfDays,
                 workerIndex,
                 &taskChunk,
-                addressCount
+                &quickUnion
             )
         );
 
@@ -158,9 +168,8 @@ static argparse::ArgumentParser createArgumentParser() {
         .required()
         .help("The output file path");
 
-    program.add_argument("--address_count")
-        .help("address file")
-        .scan<'d', uint32_t>()
+    program.add_argument("--union_file")
+        .help("Union find file")
         .required();
 
     program.add_argument("-w", "--worker_count")
@@ -208,15 +217,17 @@ groupDaysListByYears(const std::vector<std::string>& daysList, uint32_t startYea
 std::unique_ptr<TxCountsList> generateAddressStatisticsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    BtcId addressCount
+    utils::btc::WeightedQuickUnion* quickUnion
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
+    BtcId addressCount = quickUnion->getSize();
     std::unique_ptr<TxCountsList> txCountsList = std::make_unique<TxCountsList>(addressCount, std::make_pair(0, 0));
 
     for (const auto& dayDir : *daysDirList) {
         calculateAddressStatisticsOfDays(
             dayDir,
-            txCountsList.get()
+            txCountsList.get(),
+            *quickUnion
         );
     }
 
@@ -226,7 +237,8 @@ std::unique_ptr<TxCountsList> generateAddressStatisticsOfDays(
 
 void calculateAddressStatisticsOfDays(
     const std::string& dayDir,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 ) {
     try {
         auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
@@ -247,7 +259,8 @@ void calculateAddressStatisticsOfDays(
         for (const auto& block : blocks) {
             calculateAddressStatisticsOfBlock(
                 block,
-                txCountsList
+                txCountsList,
+                quickUnion
             );
         }
 
@@ -265,7 +278,8 @@ void calculateAddressStatisticsOfDays(
 
 void calculateAddressStatisticsOfBlock(
     const json& block,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 ) {
     std::string blockHash = utils::json::get(block, "hash");
 
@@ -274,7 +288,7 @@ void calculateAddressStatisticsOfBlock(
 
         for (const auto& tx : txs) {
             calculateAddressStatisticsOfTx(
-                tx, txCountsList
+                tx, txCountsList, quickUnion
             );
         }
     }
@@ -286,7 +300,8 @@ void calculateAddressStatisticsOfBlock(
 
 void calculateAddressStatisticsOfTx(
     const json& tx,
-    TxCountsList* txCountsList
+    TxCountsList* txCountsList,
+    const utils::btc::WeightedQuickUnion& quickUnion
 ) {
     std::string txHash = utils::json::get(tx, "hash");
 
@@ -304,7 +319,8 @@ void calculateAddressStatisticsOfTx(
                 continue;
             }
             BtcId addressId = addrItem.value();
-            ++ txCountsList->at(addressId).first;
+            BtcId clusterId = quickUnion.findRoot(addressId);
+            ++ txCountsList->at(clusterId).first;
         }
 
         auto& outputs = utils::json::get(tx, "out");
@@ -314,7 +330,8 @@ void calculateAddressStatisticsOfTx(
                 continue;
             }
             BtcId addressId = addrItem.value();
-            ++txCountsList->at(addressId).second;
+            BtcId clusterId = quickUnion.findRoot(addressId);
+            ++txCountsList->at(clusterId).second;
         }
     }
     catch (std::exception& e) {
