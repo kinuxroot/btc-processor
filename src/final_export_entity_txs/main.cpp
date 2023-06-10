@@ -1,4 +1,4 @@
-// 生成地址的交易数量
+// 生成每个用户相关交易数量、每笔交易的金额、区块编号、手续费
 
 #include "btc-config.h"
 #include "final_export_tx_counts/logger.h"
@@ -48,25 +48,38 @@ std::vector<
 
 static argparse::ArgumentParser createArgumentParser();
 
-std::unique_ptr<TxCountsList> generateAddressStatisticsOfDays(
+void generateEntityTxsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    BtcId addressCount
+    const utils::btc::WeightedQuickUnion* quickUnion,
+    const std::vector<utils::btc::ClusterLabels>* clusterLabels,
+    const TxCountsList* txCountsList,
+    std::osyncstream* outputFile
 );
 
 void calculateAddressStatisticsOfDays(
     const std::string& dayDir,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile
 );
 
 void calculateAddressStatisticsOfBlock(
     const json& block,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile
 );
 
 void calculateAddressStatisticsOfTx(
     const json& tx,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile,
+    bool isMiningTx
 );
 
 void dumpCountList(
@@ -104,45 +117,58 @@ int main(int argc, char* argv[]) {
     logger.info(fmt::format("Hardware Concurrency: {}", std::thread::hardware_concurrency()));
     logger.info(fmt::format("Worker count: {}", workerCount));
 
-    auto addressCount = argumentParser.get<uint32_t>("--address_count");
-    logger.info(fmt::format("Using address count: {}", addressCount));
+    logUsedMemory();
+
+    const std::string ufFilePath = argumentParser.get("--union_file");
+    utils::btc::WeightedQuickUnion quickUnion(1);
+    logger.info(fmt::format("Load quickUnion from {}", ufFilePath));
+    quickUnion.load(ufFilePath);
+    logger.info(fmt::format("Loaded quickUnion {} items from {}", quickUnion.getSize(), ufFilePath));
+
+    logUsedMemory();
+
+    const std::string entityLabelFilePath = argumentParser.get("--entity_label_file");
+    std::ifstream entityLabelFile(entityLabelFilePath, std::ios::binary);
+    std::vector<utils::btc::ClusterLabels> clusterLabels(quickUnion.getSize());
+    logger.info("Load clusterLabels...");
+    entityLabelFile.read(
+        reinterpret_cast<char*>(clusterLabels.data()),
+        clusterLabels.size() * sizeof(utils::btc::ClusterLabels)
+    );
+    logger.info(fmt::format("Loaded clusterLabels {} items", clusterLabels.size()));
+
+    logUsedMemory();
+
+    const std::string txCountsFilePath = argumentParser.get("--tx_counts_file");
+    logger.info(fmt::format("Load tx counts from {}", txCountsFilePath));
+    TxCountsList txCountsList(quickUnion.getSize(), std::make_pair(0, 0));
+    logger.info(fmt::format("Loaded tx counts from {}", txCountsFilePath));
 
     logUsedMemory();
 
     const std::vector<std::vector<std::string>> taskChunks = utils::generateTaskChunks(daysList, workerCount);
     uint32_t workerIndex = 0;
-    std::vector<std::future<std::unique_ptr<TxCountsList>>> tasks;
+    std::vector<std::future<void>> tasks;
+
+    std::ofstream outputFile(outputFilePath.c_str());
+    std::osyncstream syncOutputFile(outputFile);
+
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
             std::async(
-                generateAddressStatisticsOfDays,
+                generateEntityTxsOfDays,
                 workerIndex,
                 &taskChunk,
-                addressCount
+                &quickUnion,
+                &clusterLabels,
+                &txCountsList,
+                &syncOutputFile
             )
         );
 
         ++workerIndex;
     }
-
-    logger.info("Try to merge tx counts list");
-    TxCountsList mergedTxCountsList(addressCount, std::make_pair(0, 0));
-    workerIndex = 0;
-    for (auto& task : tasks) {
-        logger.info(fmt::format("Try to get tx counts list: {}", workerIndex));
-        std::unique_ptr<TxCountsList> txCountsListPtr = task.get();
-        logger.info(fmt::format("Merge tx counts list: {}", workerIndex));
-        TxCountsList& txCountsList = *(txCountsListPtr.get());
-        for (BtcId addressId = 0; addressId != addressCount; ++addressId) {
-            mergedTxCountsList[addressId].first += txCountsList[addressId].first;
-            mergedTxCountsList[addressId].second += txCountsList[addressId].second;
-        }
-        logger.info(fmt::format("Merged tx counts list: {}", workerIndex));
-
-        ++workerIndex;
-    }
-
-    dumpCountList(outputFilePath, mergedTxCountsList);
+    utils::waitForTasks(logger, tasks);
 
     return EXIT_SUCCESS;
 }
@@ -157,6 +183,18 @@ static argparse::ArgumentParser createArgumentParser() {
     program.add_argument("output_file")
         .required()
         .help("The output file path");
+
+    program.add_argument("--union_file")
+        .help("Union find file")
+        .required();
+
+    program.add_argument("--entity_label_file")
+        .help("Entity label file")
+        .required();
+
+    program.add_argument("--tx_counts_file")
+        .help("Tx counts file")
+        .required();
 
     program.add_argument("--address_count")
         .help("address file")
@@ -205,28 +243,34 @@ groupDaysListByYears(const std::vector<std::string>& daysList, uint32_t startYea
     return groupedDaysList;
 }
 
-std::unique_ptr<TxCountsList> generateAddressStatisticsOfDays(
+void generateEntityTxsOfDays(
     uint32_t workerIndex,
     const std::vector<std::string>* daysDirList,
-    BtcId addressCount
+    const utils::btc::WeightedQuickUnion* quickUnion,
+    const std::vector<utils::btc::ClusterLabels>* clusterLabels,
+    const TxCountsList* txCountsList,
+    std::osyncstream* outputFile
 ) {
     logger.info(fmt::format("Worker started: {}", workerIndex));
-    std::unique_ptr<TxCountsList> txCountsList = std::make_unique<TxCountsList>(addressCount, std::make_pair(0, 0));
 
     for (const auto& dayDir : *daysDirList) {
         calculateAddressStatisticsOfDays(
             dayDir,
-            txCountsList.get()
+            *quickUnion,
+            *clusterLabels,
+            *txCountsList,
+            *outputFile
         );
     }
-
-    return txCountsList;
 }
 
 
 void calculateAddressStatisticsOfDays(
     const std::string& dayDir,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile
 ) {
     try {
         auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
@@ -247,7 +291,10 @@ void calculateAddressStatisticsOfDays(
         for (const auto& block : blocks) {
             calculateAddressStatisticsOfBlock(
                 block,
-                txCountsList
+                quickUnion,
+                clusterLabels,
+                txCountsList,
+                outputFile
             );
         }
 
@@ -265,17 +312,27 @@ void calculateAddressStatisticsOfDays(
 
 void calculateAddressStatisticsOfBlock(
     const json& block,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile
 ) {
     std::string blockHash = utils::json::get(block, "hash");
 
     try {
         const auto& txs = block["tx"];
-
+        uint32_t txIndex = 0;
         for (const auto& tx : txs) {
             calculateAddressStatisticsOfTx(
-                tx, txCountsList
+                tx,
+                quickUnion,
+                clusterLabels,
+                txCountsList,
+                outputFile,
+                txIndex == 0
             );
+
+            ++txIndex;
         }
     }
     catch (std::exception& e) {
@@ -284,14 +341,48 @@ void calculateAddressStatisticsOfBlock(
     }
 }
 
+class TxItem {
+public:
+    // 0: in, 1: out
+    uint8_t type;
+    uint64_t txCount;
+    uint64_t txValue;
+    uint32_t blockIndex;
+    uint64_t fee;
+    uint64_t weight;
+    bool isMining;
+    utils::btc::ClusterLabels clusterLabel;
+
+    std::string format() {
+        return fmt::format("{},{},{},{},{},{},{},{},{},{}",
+            type,
+            txCount,
+            txValue,
+            blockIndex,
+            fee,
+            weight,
+            isMining,
+            clusterLabel.isLabeldExchange,
+            clusterLabel.isFoundExchange,
+            clusterLabel.isMiner
+        );
+    }
+};
+
 void calculateAddressStatisticsOfTx(
     const json& tx,
-    TxCountsList* txCountsList
+    const utils::btc::WeightedQuickUnion& quickUnion,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    const TxCountsList& txCountsList,
+    std::osyncstream& outputFile,
+    bool isMiningTx
 ) {
     std::string txHash = utils::json::get(tx, "hash");
 
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
+        uint64_t inputTotalValue = 0;
+        BtcId inputEntityId = 0;
         for (const auto& input : inputs) {
             const auto prevOutItem = input.find("prev_out");
             if (prevOutItem == input.cend()) {
@@ -304,7 +395,30 @@ void calculateAddressStatisticsOfTx(
                 continue;
             }
             BtcId addressId = addrItem.value();
-            ++ txCountsList->at(addressId).first;
+            inputEntityId = quickUnion.findRoot(addressId);
+
+            const auto valueItem = prevOut.find("value");
+            if (valueItem == prevOut.cend()) {
+                continue;
+            }
+            uint64_t inputValue = valueItem.value();
+            inputTotalValue += inputValue;
+        }
+
+        if (inputTotalValue > 0) {
+            TxItem inputTxItem{
+                .type = 0,
+                .txCount = txCountsList[inputEntityId].first,
+                .txValue = inputTotalValue,
+                .blockIndex = utils::json::get(tx, "block_index"),
+                .fee = utils::json::get(tx, "fee"),
+                .weight = utils::json::get(tx, "weight"),
+                .isMining = false,
+                .clusterLabel = clusterLabels[inputEntityId]
+            };
+
+            std::string outputLine = inputTxItem.format();
+            outputFile << outputLine << std::endl;
         }
 
         auto& outputs = utils::json::get(tx, "out");
@@ -314,7 +428,27 @@ void calculateAddressStatisticsOfTx(
                 continue;
             }
             BtcId addressId = addrItem.value();
-            ++txCountsList->at(addressId).second;
+            BtcId outputEntityId = quickUnion.findRoot(addressId);
+
+            const auto valueItem = output.find("value");
+            if (valueItem == output.cend()) {
+                continue;
+            }
+            uint64_t outputValue = valueItem.value();
+
+            TxItem outputTxItem{
+                .type = 1,
+                .txCount = txCountsList[outputEntityId].second,
+                .txValue = outputValue,
+                .blockIndex = utils::json::get(tx, "block_index"),
+                .fee = 0,
+                .weight = 0,
+                .isMining = isMiningTx,
+                .clusterLabel = clusterLabels[outputEntityId]
+            };
+
+            std::string outputLine = outputTxItem.format();
+            outputFile << outputLine << std::endl;
         }
     }
     catch (std::exception& e) {
@@ -323,17 +457,19 @@ void calculateAddressStatisticsOfTx(
     }
 }
 
-void dumpCountList(
-    const std::string& outputFilePath,
+std::size_t loadCountList(
+    const std::string& inputFilePath,
     TxCountsList& countList
 ) {
-    logger.info(fmt::format("Dump count to: {}", outputFilePath));
-
-    std::ofstream outputFile(outputFilePath.c_str(), std::ios::binary);
+    logger.info(fmt::format("Load count from: {}", inputFilePath));
+    std::ifstream inputFile(inputFilePath.c_str(), std::ios::binary);
+    std::size_t loadedCount = 0;
 
     std::size_t countSize = countList.size();
-    outputFile.write(reinterpret_cast<char*>(&countSize), sizeof(countSize));
-    outputFile.write(reinterpret_cast<const char*>(countList.data()), countSize);
+    inputFile.read(reinterpret_cast<char*>(&loadedCount), sizeof(loadedCount));
+    inputFile.read(reinterpret_cast<char*>(countList.data()), countSize * sizeof(countList[0]));
+
+    return loadedCount;
 }
 
 inline void logUsedMemory() {

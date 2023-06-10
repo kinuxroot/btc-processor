@@ -19,6 +19,7 @@
 #include <iomanip>
 
 using json = nlohmann::json;
+using EntityYearList = std::vector<int16_t>;
 
 namespace fs = std::filesystem;
 
@@ -28,6 +29,10 @@ auto& logger = getLogger();
 
 static argparse::ArgumentParser createArgumentParser();
 std::set<BtcId> parseMinerAddressIds(const std::string& minerTxJsonFilePath);
+std::size_t loadYearList(
+    const std::string& inputFilePath,
+    EntityYearList& yearList
+);
 
 int main(int argc, char* argv[]) {
     auto argumentParser = createArgumentParser();
@@ -100,6 +105,12 @@ int main(int argc, char* argv[]) {
         }
         logger.info(fmt::format("Finished miner tx combined users: {}", minerTxCombinedAddressesRootIds.size()));
 
+        std::string addressReportDirPath = argumentParser.get("address_report_dir");
+        fs::path entityYearFilePath = fs::path(addressReportDirPath) / "entity-year.out";
+        EntityYearList entityYearList;
+        std::size_t loadedEntityYears = loadYearList(entityYearFilePath.string(), entityYearList);
+        logger.info(fmt::format("Loaded entity years: {}", loadedEntityYears));
+
         // 导出用户列表报告
         std::string outputReportFilePath = argumentParser.get("output_report_file");
         std::ofstream outputReportFile(outputReportFilePath);
@@ -109,14 +120,16 @@ int main(int argc, char* argv[]) {
         outputReportFile << fmt::format("User,IsMiner,IsLabeldExchange,IsFoundExchange") << std::endl;
         std::vector<utils::btc::ClusterLabels> clusterLabels(quickUnion.getSize());
         quickUnionClusters.forEach(
-            [&outputReportFile, &minterTxRootIds, &exchangeEntities, &minerTxCombinedAddressesRootIds, &clusterLabels]
+            [
+                &outputReportFile, &minterTxRootIds, &exchangeEntities, &minerTxCombinedAddressesRootIds, &clusterLabels, &entityYearList]
             (BtcId entityId, BtcId btcSize) -> void {
                 bool isMinerUser = minterTxRootIds.contains(entityId);
                 bool isMuanualExchange = exchangeEntities.contains(entityId);
                 bool isMinerTxCombinedAddressRootId = minerTxCombinedAddressesRootIds.contains(entityId);
+                auto entityYear = entityYearList[entityId];
 
-                outputReportFile << fmt::format("{},{},{},{}",
-                    entityId, isMinerUser, isMuanualExchange, isMinerTxCombinedAddressRootId
+                outputReportFile << fmt::format("{},{},{},{},{}",
+                    entityId, isMinerUser, isMuanualExchange, isMinerTxCombinedAddressRootId, entityYear
                 ) << std::endl;
 
                 clusterLabels[entityId].isMiner = isMinerUser;
@@ -155,6 +168,10 @@ static argparse::ArgumentParser createArgumentParser() {
     program.add_argument("output_label_file")
         .required()
         .help("The output label file path");
+
+    program.add_argument("address_report_dir")
+        .required()
+        .help("The base directory of address report files");
 
     program.add_argument("--uf_file")
         .help("The Union find file path")
@@ -233,6 +250,21 @@ std::set<BtcId> parseMinerAddressIds(
     }
 
     return minerAddressIds;
+}
+
+std::size_t loadYearList(
+    const std::string& inputFilePath,
+    EntityYearList& yearList
+) {
+    logger.info(fmt::format("Load count from: {}", inputFilePath));
+    std::ifstream inputFile(inputFilePath.c_str(), std::ios::binary);
+    std::size_t loadedCount = 0;
+
+    inputFile.read(reinterpret_cast<char*>(&loadedCount), sizeof(loadedCount));
+    yearList.resize(loadedCount);
+    inputFile.read(reinterpret_cast<char*>(yearList.data()), yearList.size() * sizeof(int16_t));
+
+    return loadedCount;
 }
 
 inline void logUsedMemory() {
