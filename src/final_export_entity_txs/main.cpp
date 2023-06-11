@@ -54,7 +54,7 @@ void generateEntityTxsOfDays(
     const utils::btc::WeightedQuickUnion* quickUnion,
     const std::vector<utils::btc::ClusterLabels>* clusterLabels,
     const TxCountsList* txCountsList,
-    std::osyncstream* outputFile
+    std::ostream* outputFile
 );
 
 void calculateAddressStatisticsOfDays(
@@ -63,7 +63,7 @@ void calculateAddressStatisticsOfDays(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile
+    std::ostream& outputFile
 );
 
 void calculateAddressStatisticsOfBlock(
@@ -72,7 +72,7 @@ void calculateAddressStatisticsOfBlock(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile
+    std::ostream& outputFile
 );
 
 void calculateAddressStatisticsOfTx(
@@ -81,7 +81,7 @@ void calculateAddressStatisticsOfTx(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile,
+    std::ostream& outputFile,
     bool isMiningTx
 );
 
@@ -154,9 +154,8 @@ int main(int argc, char* argv[]) {
     std::vector<std::future<void>> tasks;
 
     std::ofstream outputFile(outputFilePath.c_str());
-    std::osyncstream syncOutputFile(outputFile);
     std::string tableTitle = "User,Type,TotalCount,TxValue,BlockIndex,Fee,Weight,IsMining";
-    syncOutputFile << tableTitle << std::endl;
+    outputFile << tableTitle << std::endl;
 
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
@@ -167,7 +166,7 @@ int main(int argc, char* argv[]) {
                 &quickUnion,
                 &clusterLabels,
                 &txCountsList,
-                &syncOutputFile
+                &outputFile
             )
         );
 
@@ -249,7 +248,7 @@ void generateEntityTxsOfDays(
     const utils::btc::WeightedQuickUnion* quickUnion,
     const std::vector<utils::btc::ClusterLabels>* clusterLabels,
     const TxCountsList* txCountsList,
-    std::osyncstream* outputFile
+    std::ostream* outputFile
 ) {
     logger.info(fmt::format("<{}> Worker started", workerIndex));
 
@@ -272,7 +271,7 @@ void calculateAddressStatisticsOfDays(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile
+    std::ostream& outputFile
 ) {
     try {
         auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
@@ -319,7 +318,7 @@ void calculateAddressStatisticsOfBlock(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile
+    std::ostream& outputFile
 ) {
     std::string blockHash = utils::json::get(block, "hash");
 
@@ -382,21 +381,13 @@ void calculateAddressStatisticsOfTx(
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     const TxCountsList& txCountsList,
-    std::osyncstream& outputFile,
+    std::ostream& outputFile,
     bool isMiningTx
 ) {
-    logger.info(fmt::format("<{}> [TX] Before tx info", workerIndex));
     std::string txHash = utils::json::get(tx, "hash");
-    logger.info(fmt::format("<{}> [TX] Tx hash: {}", workerIndex, txHash));
     uint32_t blockIndex = utils::json::get(tx, "block_index");
-    logger.info(fmt::format("<{}> [TX] Block index: {}", workerIndex, blockIndex));
     uint64_t fee = utils::json::get(tx, "fee");
-    logger.info(fmt::format("<{}> [TX] Tx fee: {}", workerIndex, fee));
     uint64_t weight = utils::json::get(tx, "weight");
-    logger.info(fmt::format("<{}> [TX] Tx weight: {}", workerIndex, weight));
-    logger.info(fmt::format("<{}> [TX] After tx info", workerIndex));
-
-    logger.info(fmt::format("<{}> [TX] Before tx process", workerIndex));
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
         uint64_t inputTotalValue = 0;
@@ -437,7 +428,7 @@ void calculateAddressStatisticsOfTx(
             };
 
             std::string outputLine = inputTxItem.format();
-            outputFile << outputLine << std::endl;
+            std::osyncstream(outputFile) << outputLine << std::endl;
         }
 
         auto& outputs = utils::json::get(tx, "out");
@@ -468,15 +459,13 @@ void calculateAddressStatisticsOfTx(
             };
 
             std::string outputLine = outputTxItem.format();
-            outputFile << outputLine << std::endl;
+            std::osyncstream(outputFile) << outputLine << std::endl;
         }
     }
     catch (std::exception& e) {
         logger.error(fmt::format("<{}> Error when process tx: {}", workerIndex, txHash));
         logger.error(e.what());
     }
-
-    logger.info(fmt::format("<{}> [TX] After tx process", workerIndex));
 }
 
 std::size_t loadCountList(
