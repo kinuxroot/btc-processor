@@ -85,6 +85,11 @@ void calculateAddressStatisticsOfTx(
     bool isMiningTx
 );
 
+std::size_t loadCountList(
+    const std::string& inputFilePath,
+    TxCountsList& countList
+);
+
 void dumpCountList(
     const std::string& outputFilePath,
     TxCountsList& countList
@@ -145,7 +150,8 @@ int main(int argc, char* argv[]) {
     const std::string txCountsFilePath = argumentParser.get("--tx_counts_file");
     logger.info(fmt::format("Load tx counts from {}", txCountsFilePath));
     TxCountsList txCountsList(quickUnion.getSize(), std::make_pair(0, 0));
-    logger.info(fmt::format("Loaded tx counts from {}", txCountsFilePath));
+    size_t countListSize = loadCountList(txCountsFilePath, txCountsList);
+    logger.info(fmt::format("Loaded {} tx counts from {}", countListSize, txCountsFilePath));
 
     logUsedMemory();
 
@@ -389,6 +395,8 @@ void calculateAddressStatisticsOfTx(
     uint64_t fee = utils::json::get(tx, "fee");
     uint64_t weight = utils::json::get(tx, "weight");
     try {
+        std::string lines;
+
         const auto& inputs = utils::json::get(tx, "inputs");
         uint64_t inputTotalValue = 0;
         BtcId inputEntityId = 0;
@@ -428,7 +436,7 @@ void calculateAddressStatisticsOfTx(
             };
 
             std::string outputLine = inputTxItem.format();
-            std::osyncstream(outputFile) << outputLine << std::endl;
+            lines.append(outputLine).append("\n");
         }
 
         auto& outputs = utils::json::get(tx, "out");
@@ -459,8 +467,10 @@ void calculateAddressStatisticsOfTx(
             };
 
             std::string outputLine = outputTxItem.format();
-            std::osyncstream(outputFile) << outputLine << std::endl;
+            lines.append(outputLine).append("\n");
         }
+
+        std::osyncstream(outputFile) << lines << std::endl;
     }
     catch (std::exception& e) {
         logger.error(fmt::format("<{}> Error when process tx: {}", workerIndex, txHash));
