@@ -470,7 +470,7 @@ void calculateAddressStatisticsOfTx(
             lines.append(outputLine).append("\n");
         }
 
-        std::osyncstream(outputFile) << lines << std::endl;
+        std::osyncstream(outputFile) << lines << std::flush;
     }
     catch (std::exception& e) {
         logger.error(fmt::format("<{}> Error when process tx: {}", workerIndex, txHash));
