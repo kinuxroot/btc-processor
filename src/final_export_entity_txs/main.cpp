@@ -152,6 +152,8 @@ int main(int argc, char* argv[]) {
 
     std::ofstream outputFile(outputFilePath.c_str());
     std::osyncstream syncOutputFile(outputFile);
+    std::string tableTitle = "User,Type,TotalCount,TxValue,BlockIndex,Fee,Weight,IsMining";
+    syncOutputFile << tableTitle << std::endl;
 
     for (const auto& taskChunk : taskChunks) {
         tasks.push_back(
@@ -194,11 +196,6 @@ static argparse::ArgumentParser createArgumentParser() {
 
     program.add_argument("--tx_counts_file")
         .help("Tx counts file")
-        .required();
-
-    program.add_argument("--address_count")
-        .help("address file")
-        .scan<'d', uint32_t>()
         .required();
 
     program.add_argument("-w", "--worker_count")
@@ -343,6 +340,7 @@ void calculateAddressStatisticsOfBlock(
 
 class TxItem {
 public:
+    BtcId userId;
     // 0: in, 1: out
     uint8_t type;
     uint64_t txCount;
@@ -354,7 +352,8 @@ public:
     utils::btc::ClusterLabels clusterLabel;
 
     std::string format() {
-        return fmt::format("{},{},{},{},{},{},{},{},{},{}",
+        return fmt::format("{},{},{},{},{},{},{},{},{},{},{}",
+            userId,
             type,
             txCount,
             txValue,
@@ -407,6 +406,7 @@ void calculateAddressStatisticsOfTx(
 
         if (inputTotalValue > 0) {
             TxItem inputTxItem{
+                .userId=inputEntityId,
                 .type = 0,
                 .txCount = txCountsList[inputEntityId].first,
                 .txValue = inputTotalValue,
@@ -437,6 +437,7 @@ void calculateAddressStatisticsOfTx(
             uint64_t outputValue = valueItem.value();
 
             TxItem outputTxItem{
+                .userId=addressId,
                 .type = 1,
                 .txCount = txCountsList[outputEntityId].second,
                 .txValue = outputValue,
