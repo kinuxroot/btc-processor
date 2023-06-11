@@ -251,7 +251,7 @@ void generateEntityTxsOfDays(
     const TxCountsList* txCountsList,
     std::osyncstream* outputFile
 ) {
-    logger.info(fmt::format("Worker started: {}", workerIndex));
+    logger.info(fmt::format("<{}> Worker started", workerIndex));
 
     for (const auto& dayDir : *daysDirList) {
         calculateAddressStatisticsOfDays(
@@ -276,7 +276,7 @@ void calculateAddressStatisticsOfDays(
 ) {
     try {
         auto convertedBlocksFilePath = fmt::format("{}/{}", dayDir, "converted-block-list.json");
-        logger.info(fmt::format("Process combined blocks file: {}", dayDir));
+        logger.info(fmt::format("<{}> Process combined blocks file: {}", workerIndex, dayDir));
 
         std::ifstream convertedBlocksFile(convertedBlocksFilePath.c_str());
         if (!convertedBlocksFile.is_open()) {
@@ -287,7 +287,7 @@ void calculateAddressStatisticsOfDays(
         logUsedMemory();
         json blocks;
         convertedBlocksFile >> blocks;
-        logger.info(fmt::format("Block count: {} {}", dayDir, blocks.size()));
+        logger.info(fmt::format("<{}> Block count: {} {}", workerIndex, dayDir, blocks.size()));
         logUsedMemory();
 
         for (const auto& block : blocks) {
@@ -303,12 +303,12 @@ void calculateAddressStatisticsOfDays(
 
         logUsedMemory();
 
-        logger.info(fmt::format("Finished process blocks by date: {}", dayDir));
+        logger.info(fmt::format("<{}> Finished process blocks by date: {}", workerIndex, dayDir));
 
         logUsedMemory();
     }
     catch (const std::exception& e) {
-        logger.error(fmt::format("Error when process blocks by date: {}", dayDir));
+        logger.error(fmt::format("<{}> Error when process blocks by date: {}", workerIndex, dayDir));
         logger.error(e.what());
     }
 }
@@ -341,7 +341,7 @@ void calculateAddressStatisticsOfBlock(
         }
     }
     catch (std::exception& e) {
-        logger.error(fmt::format("Error when process block {}", blockHash));
+        logger.error(fmt::format("<{}> Error when process block {}", workerIndex, blockHash));
         logger.error(e.what());
     }
 }
@@ -385,18 +385,18 @@ void calculateAddressStatisticsOfTx(
     std::osyncstream& outputFile,
     bool isMiningTx
 ) {
-    logger.info(fmt::format("[TX] Before tx info {}", workerIndex));
+    logger.info(fmt::format("<{}> [TX] Before tx info", workerIndex));
     std::string txHash = utils::json::get(tx, "hash");
-    logger.info(fmt::format("[TX] Tx hash {}", txHash));
+    logger.info(fmt::format("<{}> [TX] Tx hash: {}", workerIndex, txHash));
     uint32_t blockIndex = utils::json::get(tx, "block_index");
-    logger.info(fmt::format("[TX] Block index {}", blockIndex));
+    logger.info(fmt::format("<{}> [TX] Block index: {}", workerIndex, blockIndex));
     uint64_t fee = utils::json::get(tx, "fee");
-    logger.info(fmt::format("[TX] Tx fee {}", fee));
+    logger.info(fmt::format("<{}> [TX] Tx fee: {}", workerIndex, fee));
     uint64_t weight = utils::json::get(tx, "weight");
-    logger.info(fmt::format("[TX] Tx weight {}", weight));
-    logger.info(fmt::format("[TX] After tx info {}", workerIndex));
+    logger.info(fmt::format("<{}> [TX] Tx weight: {}", workerIndex, weight));
+    logger.info(fmt::format("<{}> [TX] After tx info", workerIndex));
 
-    logger.info(fmt::format("[TX] Before tx process {}", workerIndex));
+    logger.info(fmt::format("<{}> [TX] Before tx process", workerIndex));
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
         uint64_t inputTotalValue = 0;
@@ -472,11 +472,11 @@ void calculateAddressStatisticsOfTx(
         }
     }
     catch (std::exception& e) {
-        logger.error(fmt::format("Error when process tx {}", txHash));
+        logger.error(fmt::format("<{}> Error when process tx: {}", workerIndex, txHash));
         logger.error(e.what());
     }
 
-    logger.info(fmt::format("[TX] After tx process {}", workerIndex));
+    logger.info(fmt::format("<{}> [TX] After tx process", workerIndex));
 }
 
 std::size_t loadCountList(
