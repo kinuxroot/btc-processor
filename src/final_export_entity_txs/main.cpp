@@ -377,6 +377,13 @@ void calculateAddressStatisticsOfTx(
     bool isMiningTx
 ) {
     std::string txHash = utils::json::get(tx, "hash");
+    logger.info(fmt::format("[TX] Tx hash", txHash));
+    uint32_t blockIndex = utils::json::get(tx, "block_index");
+    logger.info(fmt::format("[TX] Block index", blockIndex));
+    uint64_t fee = utils::json::get(tx, "fee");
+    logger.info(fmt::format("[TX] Tx fee", fee));
+    uint64_t weight = utils::json::get(tx, "weight");
+    logger.info(fmt::format("[TX] Tx weight", weight));
 
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
