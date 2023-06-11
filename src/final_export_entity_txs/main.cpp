@@ -58,6 +58,7 @@ void generateEntityTxsOfDays(
 );
 
 void calculateAddressStatisticsOfDays(
+    uint32_t workerIndex,
     const std::string& dayDir,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -66,6 +67,7 @@ void calculateAddressStatisticsOfDays(
 );
 
 void calculateAddressStatisticsOfBlock(
+    uint32_t workerIndex,
     const json& block,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -74,6 +76,7 @@ void calculateAddressStatisticsOfBlock(
 );
 
 void calculateAddressStatisticsOfTx(
+    uint32_t workerIndex,
     const json& tx,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -252,6 +255,7 @@ void generateEntityTxsOfDays(
 
     for (const auto& dayDir : *daysDirList) {
         calculateAddressStatisticsOfDays(
+            workerIndex,
             dayDir,
             *quickUnion,
             *clusterLabels,
@@ -263,6 +267,7 @@ void generateEntityTxsOfDays(
 
 
 void calculateAddressStatisticsOfDays(
+    uint32_t workerIndex,
     const std::string& dayDir,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -287,6 +292,7 @@ void calculateAddressStatisticsOfDays(
 
         for (const auto& block : blocks) {
             calculateAddressStatisticsOfBlock(
+                workerIndex,
                 block,
                 quickUnion,
                 clusterLabels,
@@ -308,6 +314,7 @@ void calculateAddressStatisticsOfDays(
 }
 
 void calculateAddressStatisticsOfBlock(
+    uint32_t workerIndex,
     const json& block,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -321,6 +328,7 @@ void calculateAddressStatisticsOfBlock(
         uint32_t txIndex = 0;
         for (const auto& tx : txs) {
             calculateAddressStatisticsOfTx(
+                workerIndex,
                 tx,
                 quickUnion,
                 clusterLabels,
@@ -369,6 +377,7 @@ public:
 };
 
 void calculateAddressStatisticsOfTx(
+    uint32_t workerIndex,
     const json& tx,
     const utils::btc::WeightedQuickUnion& quickUnion,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -376,6 +385,7 @@ void calculateAddressStatisticsOfTx(
     std::osyncstream& outputFile,
     bool isMiningTx
 ) {
+    logger.info(fmt::format("[TX] Before tx info {}", workerIndex));
     std::string txHash = utils::json::get(tx, "hash");
     logger.info(fmt::format("[TX] Tx hash", txHash));
     uint32_t blockIndex = utils::json::get(tx, "block_index");
@@ -384,7 +394,9 @@ void calculateAddressStatisticsOfTx(
     logger.info(fmt::format("[TX] Tx fee", fee));
     uint64_t weight = utils::json::get(tx, "weight");
     logger.info(fmt::format("[TX] Tx weight", weight));
+    logger.info(fmt::format("[TX] After tx info {}", workerIndex));
 
+    logger.info(fmt::format("[TX] Before tx process {}", workerIndex));
     try {
         const auto& inputs = utils::json::get(tx, "inputs");
         uint64_t inputTotalValue = 0;
@@ -463,6 +475,8 @@ void calculateAddressStatisticsOfTx(
         logger.error(fmt::format("Error when process tx {}", txHash));
         logger.error(e.what());
     }
+
+    logger.info(fmt::format("[TX] After tx process {}", workerIndex));
 }
 
 std::size_t loadCountList(
