@@ -387,13 +387,13 @@ void calculateAddressStatisticsOfTx(
 ) {
     logger.info(fmt::format("[TX] Before tx info {}", workerIndex));
     std::string txHash = utils::json::get(tx, "hash");
-    logger.info(fmt::format("[TX] Tx hash", txHash));
+    logger.info(fmt::format("[TX] Tx hash {}", txHash));
     uint32_t blockIndex = utils::json::get(tx, "block_index");
-    logger.info(fmt::format("[TX] Block index", blockIndex));
+    logger.info(fmt::format("[TX] Block index {}", blockIndex));
     uint64_t fee = utils::json::get(tx, "fee");
-    logger.info(fmt::format("[TX] Tx fee", fee));
+    logger.info(fmt::format("[TX] Tx fee {}", fee));
     uint64_t weight = utils::json::get(tx, "weight");
-    logger.info(fmt::format("[TX] Tx weight", weight));
+    logger.info(fmt::format("[TX] Tx weight {}", weight));
     logger.info(fmt::format("[TX] After tx info {}", workerIndex));
 
     logger.info(fmt::format("[TX] Before tx process {}", workerIndex));
