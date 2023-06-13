@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
         auto newAddressOutputFilePath = addressOutputBaseDirPath / (year + ".new.csv");
         auto entityOutputFilePath = entityOutputBaseDirPath / (year + ".new");
         auto newEntityOutputFilePath = entityOutputBaseDirPath / (year + ".new.csv");
-        auto activeEntityBinaryOutputFilePath = entityOutputBaseDirPath / (year + ".active.csv");
+        auto activeEntityBinaryOutputFilePath = entityOutputBaseDirPath / (year + ".active");
         auto activeEntityOutputFilePath = entityOutputBaseDirPath / (year + ".active.csv");
         if (fs::exists(addressOutputFilePath) && fs::exists(entityOutputFilePath)) {
             logger.info(fmt::format("Load existed file", year));
