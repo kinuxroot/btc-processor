@@ -707,29 +707,29 @@ bool isToRemoveEntity(
 ) {
     bool onlyLongTerm = averageFilterOptions.onlyLongTerm;
     if (onlyLongTerm && entityYear >= currentYear) {
-        return false;
+        return true;
     }
 
     // 默认为0，会移除所有余额为0的实体
     double removeLowValue = averageFilterOptions.removeLowValue;
     if (value <= removeLowValue) {
-        return false;
+        return true;
     }
 
     bool removeMiner = averageFilterOptions.removeMiner;
     if (removeMiner && clusterLabel.isMiner) {
-        return false;
+        return true;
     }
     bool removeLabeledExchange = averageFilterOptions.removeLabeledExchange;
     if (removeLabeledExchange && clusterLabel.isLabeldExchange) {
-        return false;
+        return true;
     }
     bool removeFoundExchange = averageFilterOptions.removeFoundExchange;
     if (removeFoundExchange && clusterLabel.isFoundExchange) {
-        return false;
+        return true;
     }
 
-    return true;
+    return false;
 }
 
 SortedBalanceList sortBalanceList(
