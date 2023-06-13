@@ -77,6 +77,7 @@ void processYearEntityBalance(
     uint32_t year,
     const std::string& entityBalanceFilePath,
     const std::string& entityCountListFilePath,
+    const std::string& activeEntityListFilePath,
     const std::string& entityBalanceFilePathPrefix,
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -122,6 +123,7 @@ SortedBalanceList sortBalanceList(
     uint32_t year,
     const BalanceList& balanceList,
     const CountList& entityCountList,
+    const CountList& activeEntityList,
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     size_t initialEntityCount,
@@ -398,6 +400,7 @@ void processEntityBalanceOfYears(
     for (const auto& entityBalanceYearItem : *entityBalanceYearItems) {
         auto year = entityBalanceYearItem.first;
         auto entityCountListFilePath = fs::path(addressReportBaseDir) / "entity" / (std::to_string(year) + ".new");
+        auto activeEntityFilePath = fs::path(addressReportBaseDir) / "entity" / (std::to_string(year) + ".active");
 
         const auto& entityBalanceFilePath = entityBalanceYearItem.second;
         auto entityBalanceFilePathPrefix = outputBaseDirPath / fs::path(entityBalanceFilePath).filename();
@@ -406,6 +409,7 @@ void processEntityBalanceOfYears(
             year,
             entityBalanceFilePath,
             entityCountListFilePath.string(),
+            activeEntityFilePath.string(),
             entityBalanceFilePathPrefix.string(),
             *entityYearList,
             *clusterLabels,
@@ -420,6 +424,7 @@ void processYearEntityBalance(
     uint32_t year,
     const std::string& entityBalanceFilePath,
     const std::string& entityCountListFilePath,
+    const std::string& activeEntityListFilePath,
     const std::string& entityBalanceFilePathPrefix,
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
@@ -440,10 +445,15 @@ void processYearEntityBalance(
     loadCountList(entityCountListFilePath, entityCountList);
     logUsedMemory();
 
+    CountList activeEntityList;
+    loadCountList(activeEntityListFilePath, activeEntityList);
+    logUsedMemory();
+
     const auto& sortedBalanceList = sortBalanceList(
         year,
         balanceList,
         entityCountList,
+        activeEntityList,
         entityYearList,
         clusterLabels,
         nonzeroEntityCount,
@@ -704,11 +714,12 @@ bool isToRemoveEntity(
     BalanceValue value,
     uint16_t currentYear,
     uint16_t entityYear,
+    uint8_t isActive,
     const utils::btc::ClusterLabels clusterLabel,
     const AverageFilterOptions& averageFilterOptions
 ) {
     bool onlyLongTerm = averageFilterOptions.onlyLongTerm;
-    if (onlyLongTerm && entityYear >= currentYear) {
+    if (onlyLongTerm && (!isActive || entityYear >= currentYear)) {
         return true;
     }
 
@@ -738,6 +749,7 @@ SortedBalanceList sortBalanceList(
     uint32_t year,
     const BalanceList& balanceList,
     const CountList& entityCountList,
+    const CountList& activeEntityList,
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     std::size_t initialEntityCount,
@@ -756,6 +768,7 @@ SortedBalanceList sortBalanceList(
             balanceList[addressId],
             year,
             entityYearList[addressId],
+            activeEntityList[addressId],
             clusterLabels[addressId],
             averageFilterOptions)
         ) {
