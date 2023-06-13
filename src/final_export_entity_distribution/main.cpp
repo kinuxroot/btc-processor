@@ -26,6 +26,16 @@ using SortedBalanceItem = std::pair<std::size_t, BalanceValue>;
 using SortedBalanceList = std::vector<SortedBalanceItem>;
 using CountList = std::vector<uint8_t>;
 
+struct AverageFilterOptions {
+    double removeLowValue = 0.0;
+    bool removeMiner = false;
+    bool removeLabeledExchange = false;
+    bool removeFoundExchange = false;
+    double removeTopPercents = 0.0;
+    bool onlyLongTerm = false;
+    bool exportHighest = false;
+};
+
 int compareBalanceItem(const void* x, const void* y) {
     const SortedBalanceItem lhs = *static_cast<const SortedBalanceItem*>(x);
     const SortedBalanceItem rhs = *static_cast<const SortedBalanceItem*>(y);
@@ -60,7 +70,8 @@ void processEntityBalanceOfYears(
     const EntityYearList* entityYearList,
     const std::vector<utils::btc::ClusterLabels>* clusterLabels,
     std::size_t initialBufferSize,
-    std::uint32_t distributionSegment
+    std::uint32_t distributionSegment,
+    const AverageFilterOptions* averageFilterOptions
 );
 void processYearEntityBalance(
     uint32_t year,
@@ -70,11 +81,14 @@ void processYearEntityBalance(
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     std::size_t initialBufferSize,
-    std::uint32_t distributionSegment
+    std::uint32_t distributionSegment,
+    const AverageFilterOptions& averageFilterOptions
 );
 void generateEntityAverageBalance(
     const std::string& entityAverageFilePath,
-    const SortedBalanceList& balanceList
+    const SortedBalanceList& balanceList,
+    const EntityYearList& entityYearList,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels
 );
 void generateRichestEntites(
     const std::string& richestEntitiesFilePath,
@@ -105,9 +119,13 @@ std::size_t loadBalanceList(
     std::size_t& zeroEntityCount
 );
 SortedBalanceList sortBalanceList(
+    uint32_t year,
     const BalanceList& balanceList,
     const CountList& entityCountList,
-    size_t initialEntityCount
+    const EntityYearList& entityYearList,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    size_t initialEntityCount,
+    const AverageFilterOptions& averageFilterOptions
 );
 std::size_t loadCountList(
     const std::string& inputFilePath,
@@ -177,6 +195,37 @@ int main(int argc, char* argv[]) {
 
         std::string outputBaseDirPath = argumentParser.get("output_base_dir");
 
+        auto removeLowValue = argumentParser.get<double>("--remove_low_value");
+        logger.info(fmt::format("Using remove low value: {}", removeLowValue));
+
+        auto removeMiner = argumentParser.get<bool>("--remove_miner");
+        logger.info(fmt::format("Using miner: {}", removeMiner));
+
+        auto removeLabeledExchange = argumentParser.get<bool>("--remove_labeled_exchange");
+        logger.info(fmt::format("Using labeled exchange: {}", removeLabeledExchange));
+
+        auto removeFoundExchange = argumentParser.get<bool>("--remove_found_exchange");
+        logger.info(fmt::format("Using found exchange: {}", removeFoundExchange));
+
+        auto removeTopPercents = argumentParser.get<double>("--remove_top_percents");
+        logger.info(fmt::format("Using remove top percents: {}", removeTopPercents));
+
+        auto onlyLongTerm = argumentParser.get<bool>("--only_long_term");
+        logger.info(fmt::format("Using remove long term: {}", onlyLongTerm));
+
+        auto exportHighest = argumentParser.get<bool>("--export_highest");
+        logger.info(fmt::format("Using export highest: {}", exportHighest));
+
+        AverageFilterOptions averageFilterOptions{
+            .removeLowValue = removeLowValue,
+            .removeMiner = removeMiner,
+            .removeLabeledExchange = removeLabeledExchange,
+            .removeFoundExchange = removeFoundExchange,
+            .removeTopPercents = removeTopPercents,
+            .onlyLongTerm = onlyLongTerm,
+            .exportHighest = exportHighest,
+        };
+
         uint32_t workerIndex = 0;
         std::vector<std::future<void>> tasks;
         for (const auto& taskChunk : taskChunks) {
@@ -190,7 +239,8 @@ int main(int argc, char* argv[]) {
                     &entityYearList,
                     &clusterLabels,
                     initialBufferSize,
-                    distributionSegment
+                    distributionSegment,
+                    &averageFilterOptions
                 )
             );
 
@@ -258,6 +308,41 @@ static argparse::ArgumentParser createArgumentParser() {
         .scan<'d', uint32_t>()
         .required();
 
+    program.add_argument("--remove_low_value")
+        .help("Remove the entity lower than specified value")
+        .scan<'g', double>()
+        .default_value(0.0);
+
+    program.add_argument("--remove_miner")
+        .help("To remove miners")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--remove_labeled_exchange")
+        .help("To remove labeled exchanges")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--remove_found_exchange")
+        .help("To remove found exchanges")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--remove_top_percents")
+        .help("Remove top entities after remove below items of percents")
+        .scan<'g', double>()
+        .default_value(0.0);
+
+    program.add_argument("--only_long_term")
+        .help("Only generate users of long term users")
+        .default_value(false)
+        .implicit_value(true);
+
+    program.add_argument("--export_highest")
+        .help("Export highest entities")
+        .default_value(false)
+        .implicit_value(true);
+
     return program;
 }
 
@@ -305,7 +390,8 @@ void processEntityBalanceOfYears(
     const EntityYearList* entityYearList,
     const std::vector<utils::btc::ClusterLabels>* clusterLabels,
     std::size_t initialBufferSize,
-    std::uint32_t distributionSegment
+    std::uint32_t distributionSegment,
+    const AverageFilterOptions* averageFilterOptions
 ) {
     fs::path outputBaseDirPath(outputBaseDir);
 
@@ -324,7 +410,8 @@ void processEntityBalanceOfYears(
             *entityYearList,
             *clusterLabels,
             initialBufferSize,
-            distributionSegment
+            distributionSegment,
+            *averageFilterOptions
         );
     }
 }
@@ -337,7 +424,8 @@ void processYearEntityBalance(
     const EntityYearList& entityYearList,
     const std::vector<utils::btc::ClusterLabels>& clusterLabels,
     std::size_t initialBufferSize,
-    std::uint32_t distributionSegment
+    std::uint32_t distributionSegment,
+    const AverageFilterOptions& averageFilterOptions
 ) {
     using utils::btc::BtcSize;
 
@@ -353,17 +441,31 @@ void processYearEntityBalance(
     logUsedMemory();
 
     const auto& sortedBalanceList = sortBalanceList(
-        balanceList, entityCountList, nonzeroEntityCount
+        year,
+        balanceList,
+        entityCountList,
+        entityYearList,
+        clusterLabels,
+        nonzeroEntityCount,
+        averageFilterOptions
     );
     logUsedMemory();
 
-    generateEntityAverageBalance(entityBalanceFilePathPrefix + ".avgs", sortedBalanceList);
-    generateRichestEntites(
-        entityBalanceFilePathPrefix + ".richest",
-        entityYearList,
+    generateEntityAverageBalance(
+        entityBalanceFilePathPrefix + ".avgs",
         sortedBalanceList,
+        entityYearList,
         clusterLabels
     );
+
+    if (averageFilterOptions.exportHighest) {
+        generateRichestEntites(
+            entityBalanceFilePathPrefix + ".richest",
+            entityYearList,
+            sortedBalanceList,
+            clusterLabels
+        );
+    }
     //generateEntityBalanceRanks(entityBalanceFilePathPrefix + ".ranks", sortedBalanceList);
     //auto basicStatistics = generateEntityBalanceBasicStatistics(
     //    entityBalanceFilePathPrefix + ".bs",
@@ -381,7 +483,9 @@ void processYearEntityBalance(
 
 void generateEntityAverageBalance(
     const std::string& entityAverageFilePath,
-    const SortedBalanceList& balanceList
+    const SortedBalanceList& balanceList,
+    const EntityYearList& entityYearList,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels
 ) {
     logger.info("Generate entity average balance");
 
@@ -594,10 +698,48 @@ std::size_t loadBalanceList(
     return balanceSize;
 }
 
+bool isToRemoveEntity(
+    BalanceValue value,
+    uint16_t currentYear,
+    uint16_t entityYear,
+    const utils::btc::ClusterLabels clusterLabel,
+    const AverageFilterOptions& averageFilterOptions
+) {
+    bool onlyLongTerm = averageFilterOptions.onlyLongTerm;
+    if (onlyLongTerm && entityYear >= currentYear) {
+        return false;
+    }
+
+    // 默认为0，会移除所有余额为0的实体
+    double removeLowValue = averageFilterOptions.removeLowValue;
+    if (value <= removeLowValue) {
+        return false;
+    }
+
+    bool removeMiner = averageFilterOptions.removeMiner;
+    if (removeMiner && clusterLabel.isMiner) {
+        return false;
+    }
+    bool removeLabeledExchange = averageFilterOptions.removeLabeledExchange;
+    if (removeLabeledExchange && clusterLabel.isLabeldExchange) {
+        return false;
+    }
+    bool removeFoundExchange = averageFilterOptions.removeFoundExchange;
+    if (removeFoundExchange && clusterLabel.isFoundExchange) {
+        return false;
+    }
+
+    return true;
+}
+
 SortedBalanceList sortBalanceList(
+    uint32_t year,
     const BalanceList& balanceList,
     const CountList& entityCountList,
-    std::size_t initialEntityCount
+    const EntityYearList& entityYearList,
+    const std::vector<utils::btc::ClusterLabels>& clusterLabels,
+    std::size_t initialEntityCount,
+    const AverageFilterOptions& averageFilterOptions
 ) {
     logger.info(fmt::format("Sort balance list with initial count: {}", initialEntityCount));
 
@@ -608,7 +750,13 @@ SortedBalanceList sortBalanceList(
     size_t addressId = 0;
     for (auto countValue : entityCountList) {
         // 此处会删除余额为0的实体
-        if (countValue > 0 && balanceList[addressId] > 0) {
+        if (countValue && !isToRemoveEntity(
+            balanceList[addressId],
+            year,
+            entityYearList[addressId],
+            clusterLabels[addressId],
+            averageFilterOptions)
+        ) {
             sortedBalanceList.push_back(std::make_pair(addressId, balanceList[addressId]));
         }
 
@@ -617,13 +765,17 @@ SortedBalanceList sortBalanceList(
     logUsedMemory();
 
     logger.info(fmt::format("Begin to sort entities: {}", sortedBalanceList.size()));
-    //std::sort(sortedBalanceList.begin(), sortedBalanceList.end(),
-    //    [](auto lhs, auto rhs) {
-    //        return rhs.second - lhs.second;
-    //    }
-    //);
     qsort(sortedBalanceList.data(), sortedBalanceList.size(), sizeof(SortedBalanceItem), compareBalanceItem);
     logger.info(fmt::format("Finished sort entities: {}", sortedBalanceList.size()));
+
+    auto removeTopPercents = averageFilterOptions.removeTopPercents;
+    if (removeTopPercents > 0) {
+        size_t topEntityCount = static_cast<size_t>(
+            sortedBalanceList.size() * averageFilterOptions.removeTopPercents / 100
+        );
+        logger.info(fmt::format("Remove top entities: {}% -> {}", removeTopPercents, topEntityCount));
+        sortedBalanceList.erase(sortedBalanceList.begin(), sortedBalanceList.begin() + topEntityCount);
+    }
 
     return sortedBalanceList;
 }
