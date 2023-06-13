@@ -501,15 +501,15 @@ void generateEntityAverageBalance(
 
     outputFile << "Average balance of segments" << std::endl;
     outputFile << "BeginPercent,EndPercent,BeginRank,EndRank,Balance" << std::endl;
-    for (uint32_t startPercent = 0; startPercent != 100; ++startPercent) {
-        auto startIndex = static_cast<std::size_t>(
-            std::floor(static_cast<double>(startPercent) * balanceList.size() / 100)
-            );
 
+    for (std::size_t startPercent = 0, startIndex = 0;
+        startPercent != 100;
+        ++startPercent
+    ) {
         auto endPercent = startPercent + 1;
         auto endIndex = static_cast<std::size_t>(
             std::ceil(static_cast<double>(endPercent) * balanceList.size() / 100)
-            );
+        );
         if (startPercent == 99) {
             endIndex = balanceList.size();
         }
@@ -526,6 +526,8 @@ void generateEntityAverageBalance(
             startPercent, startPercent + 1, startIndex, endIndex,
             segmentAverageBalance
         ) << std::endl;
+
+        startIndex = endIndex;
     }
 }
 
