@@ -510,7 +510,7 @@ void generateEntityAverageBalance(
     outputFile << fmt::format("All average: {:.19g}", averageBalance) << std::endl;
 
     outputFile << "Average balance of segments" << std::endl;
-    outputFile << "BeginPercent,EndPercent,BeginRank,EndRank,Balance" << std::endl;
+    outputFile << "BeginPercent,EndPercent,BeginRank,EndRank,AvgBalance,MinBalance,MaxBalance" << std::endl;
 
     for (std::size_t startPercent = 0, startIndex = 0;
         startPercent != 100;
@@ -531,10 +531,12 @@ void generateEntityAverageBalance(
         double segmentEntityCount = endIndex - startIndex;
         double segmentAverageBalance = segmentTotalBalance / segmentEntityCount;
 
+        double minBalance = balanceList[startIndex].second;
+        double maxBalance = balanceList[endIndex - 1].second;
         outputFile << fmt::format(
-            "{},{},{},{},{:.19g}",
+            "{},{},{},{},{:.19g},{:.19g},{:.19g}",
             startPercent, startPercent + 1, startIndex, endIndex,
-            segmentAverageBalance
+            segmentAverageBalance, minBalance, maxBalance
         ) << std::endl;
 
         startIndex = endIndex;
