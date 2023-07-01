@@ -58,12 +58,13 @@ int main(int argc, char* argv[]) {
             auto rootAddressId = quickUnion.findRoot(addressId);
             std::string line = fmt::format("{},{}\n", rootAddressId, address);
             lines.append(line);
-            ++addressId;
 
             if (addressId && addressId % 1000000 == 0) {
                 outputFile << lines;
-                lines = "";
+                lines.clear();
             }
+
+            ++addressId;
         }
 
         if (!lines.empty()) {
