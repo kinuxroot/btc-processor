@@ -179,7 +179,7 @@ std::set<BtcId> parseMinerAddressIds(
         }
 
         for (const auto& output : outputs) {
-            if (output.find("addr") == output.end() || !output["spent"]) {
+            if (output.find("addr") == output.end() || output["value"] == 0) {
                 continue;
             }
 
