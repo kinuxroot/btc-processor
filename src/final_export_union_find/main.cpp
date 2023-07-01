@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
             lines.append(line);
             ++addressId;
 
-            if (addressId && addressId % 100000 == 0) {
+            if (addressId && addressId % 1000000 == 0) {
                 outputFile << lines;
                 lines = "";
             }
