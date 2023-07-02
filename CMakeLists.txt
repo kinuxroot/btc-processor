@@ -535,6 +535,19 @@ target_sources(
 add_executable_deps(final_export_union_find)
 target_link_libraries(final_export_union_find nlohmann_json::nlohmann_json)
 
+add_executable(
+    final_export_user
+    src/final_export_user/main.cpp
+    src/final_export_user/logger.cpp
+)
+target_sources(
+    final_export_user
+    PRIVATE
+    include/final_export_user/logger.h
+)
+add_executable_deps(final_export_user)
+target_link_libraries(final_export_user nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -569,4 +582,5 @@ install(TARGETS
     final_export_tx_counts
     final_export_entity_txs
     final_export_union_find
+    final_export_user
 )
