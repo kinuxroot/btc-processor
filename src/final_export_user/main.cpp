@@ -315,7 +315,7 @@ std::vector<BalanceMapPtr> loadBtcBalances(
             [&btcBalances, &balanceList, &btcBalanceMap]
             (BtcId entityId, BtcId addressCount) -> void {
                 BalanceValue entityBalance = balanceList[entityId];
-                btcBalanceMap->at(entityId) = entityBalance;
+                btcBalanceMap->insert(std::make_pair(entityId, entityBalance));
             }
         );
 
