@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
                     isMinerTxCombinedAddressRootId
                 );
                 for (uint16_t year = 2009; year != 2023; ++year) {
-                    auto yearOffset = 2023 - 2009;
+                    auto yearOffset = year - 2009;
                     std::string balanceStr = fmt::format(",{}", entityBalances[yearOffset]->at(entityId));
                     line += balanceStr;
                 }
