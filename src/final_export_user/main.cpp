@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
                 );
                 for (uint16_t year = 2009; year != 2023; ++year) {
                     auto yearOffset = year - 2009;
-                    std::string balanceStr = fmt::format(",{}", entityBalances[yearOffset]->at(entityId));
+                    std::string balanceStr = fmt::format(",{:.19g}", entityBalances[yearOffset]->at(entityId));
                     line += balanceStr;
                 }
 
