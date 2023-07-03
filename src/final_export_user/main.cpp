@@ -23,8 +23,7 @@ using json = nlohmann::json;
 using EntityYearList = std::vector<int16_t>;
 using BalanceValue = double;
 using BalanceList = std::vector<BalanceValue>;
-using BalanceMap = std::map<BtcId, BalanceValue>;
-using BalanceMapPtr = std::shared_ptr<BalanceMap>;
+using BalanceListPtr = std::shared_ptr<BalanceList>;
 
 namespace fs = std::filesystem;
 
@@ -34,7 +33,7 @@ auto& logger = getLogger();
 
 static argparse::ArgumentParser createArgumentParser();
 std::set<BtcId> parseMinerAddressIds(const std::string& minerTxJsonFilePath);
-std::vector<BalanceMapPtr> loadBtcBalances(
+std::vector<BalanceListPtr> loadBtcBalances(
     const fs::path& entityBalanceDirPath,
     utils::btc::WeightedQuickUnion& quickUnion
 );
@@ -296,30 +295,21 @@ std::size_t loadYearList(
     return loadedCount;
 }
 
-std::vector<BalanceMapPtr> loadBtcBalances(
+std::vector<BalanceListPtr> loadBtcBalances(
     const fs::path& entityBalanceDirPath,
     utils::btc::WeightedQuickUnion& quickUnion
 ) {
-    std::vector<BalanceMapPtr> btcBalances;
+    std::vector<BalanceListPtr> btcBalances;
 
     for (uint16_t year = 2009; year != 2023; ++year) {
-        BalanceList balanceList;
+        BalanceListPtr balanceListPtr = std::make_shared<BalanceList>();
         std::string balanceFileName = fmt::format("{}.out", year);
         fs::path entityBalanceFilePath = entityBalanceDirPath / balanceFileName;
 
-        loadBalanceList(entityBalanceFilePath.string(), balanceList);
+        loadBalanceList(entityBalanceFilePath.string(), *balanceListPtr);
+        btcBalances.push_back(balanceListPtr);
 
-        utils::btc::WeightedQuickUnionClusters quickUnionClusters(quickUnion);
-        BalanceMapPtr btcBalanceMap = std::make_shared<BalanceMap>();
-        quickUnionClusters.forEach(
-            [&btcBalances, &balanceList, &btcBalanceMap]
-            (BtcId entityId, BtcId addressCount) -> void {
-                BalanceValue entityBalance = balanceList[entityId];
-                btcBalanceMap->insert(std::make_pair(entityId, entityBalance));
-            }
-        );
-
-        btcBalances.push_back(btcBalanceMap);
+        logUsedMemory();
     }
 
     return btcBalances;
