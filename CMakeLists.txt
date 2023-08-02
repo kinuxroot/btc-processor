@@ -548,6 +548,19 @@ target_sources(
 add_executable_deps(final_export_user)
 target_link_libraries(final_export_user nlohmann_json::nlohmann_json)
 
+add_executable(
+    final_export_entity_month_balance
+    src/final_export_entity_month_balance/main.cpp
+    src/final_export_entity_month_balance/logger.cpp
+)
+target_sources(
+    final_export_entity_month_balance
+    PRIVATE
+    include/final_export_entity_month_balance/logger.h
+)
+add_executable_deps(final_export_entity_month_balance)
+target_link_libraries(final_export_entity_month_balance nlohmann_json::nlohmann_json)
+
 install(TARGETS
     btc_combine_blocks
     btc_combine_address
@@ -583,4 +596,5 @@ install(TARGETS
     final_export_entity_txs
     final_export_union_find
     final_export_user
+    final_export_entity_month_balance
 )

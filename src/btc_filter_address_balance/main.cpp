@@ -19,6 +19,7 @@
 namespace fs = std::filesystem;
 using BalanceValue = double;
 using BalanceList = std::vector<BalanceValue>;
+using CountList = std::vector<uint8_t>;
 
 inline void logUsedMemory();
 
@@ -34,10 +35,7 @@ std::set<BtcId> loadExcludeRootAddresses(
     const std::string& excludeAddressListFilePath,
     const utils::btc::WeightedQuickUnion& quickUnion
 );
-std::size_t loadBalanceList(
-    const std::string& inputFilePath,
-    BalanceList& balanceList
-);
+
 void processAddressBalanceOfYears(
     uint32_t workerIndex,
     const std::vector<std::string>* addressBalanceFilePaths,
@@ -53,6 +51,15 @@ void processYearAddressBalance(
 );
 void checkYearAddressBalance(
     const std::string& addressBalanceFilePath
+);
+
+std::size_t loadCountList(
+    const std::string& inputFilePath,
+    CountList& countList
+);
+std::size_t loadBalanceList(
+    const std::string& inputFilePath,
+    BalanceList& balanceList
 );
 
 int main(int argc, char* argv[]) {
@@ -342,6 +349,22 @@ std::size_t loadBalanceList(
     logger.info(fmt::format("Loaded {} balance from: {}", balanceSize, inputFilePath));
 
     return balanceSize;
+}
+
+std::size_t loadCountList(
+    const std::string& inputFilePath,
+    CountList& countList
+) {
+    logger.info(fmt::format("Load count from: {}", inputFilePath));
+    std::ifstream inputFile(inputFilePath.c_str(), std::ios::binary);
+    std::size_t loadedCount = 0;
+
+    inputFile.read(reinterpret_cast<char*>(&loadedCount), sizeof(loadedCount));
+    countList.resize(loadedCount);
+    inputFile.read(reinterpret_cast<char*>(countList.data()), countList.size());
+    logger.info(fmt::format("Loaded {} count from: {}", countList.size(), inputFilePath));
+
+    return loadedCount;
 }
 
 inline void logUsedMemory() {
