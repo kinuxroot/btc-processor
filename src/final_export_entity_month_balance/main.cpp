@@ -108,7 +108,6 @@ std::set<BtcId> loadExcludeRootAddresses(
 
 BalanceList processYearMonthAddressBalance(
     CountList& entityCountList,
-    CountList& activeEntityCountList,
     const BalanceList& balanceList,
     utils::btc::WeightedQuickUnion& quickUnion,
     const std::set<BtcId>& exchangeRootAddresseIds
@@ -233,6 +232,7 @@ int main(int argc, char* argv[]) {
         std::string balanceBaseDirPath = argumentParser.get("--balance_base_dir");
         BalanceList addressBalanceList(quickUnion.getSize(), 0.0);
         CountList entityCountList(quickUnion.getSize(), 0);
+        CountList entityActiveCountList(quickUnion.getSize(), 0);
 
         logUsedMemory();
 
@@ -259,6 +259,11 @@ int main(int argc, char* argv[]) {
             auto entityCountListFilePath = fs::path(addressReportDirPath)
                 / "entity" / fmt::format("{}.new", previousYear);
             loadCountList(entityCountListFilePath.string(), entityCountList);
+
+            // 加载本年活跃实体列表
+            auto activeEntityCountListFilePath = fs::path(addressReportDirPath)
+                / "entity" / fmt::format("{}.active", year);
+            loadCountList(activeEntityCountListFilePath.string(), entityActiveCountList);
         }
 
         logUsedMemory();
@@ -332,12 +337,8 @@ int main(int argc, char* argv[]) {
             }
 
             // 第一步：计算实体余额
-            // TODO: 计算entityCountList
-            // TODO: 计算activateCountList
-            CountList entityActiveCountList(quickUnion.getSize(), 0);
             const auto& entityBalanceList = processYearMonthAddressBalance(
                 entityCountList,
-                entityActiveCountList,
                 addressBalanceList,
                 quickUnion,
                 excludeRootAddresses
@@ -627,7 +628,6 @@ std::set<BtcId> loadExcludeRootAddresses(
 
 BalanceList processYearMonthAddressBalance(
     CountList& entityCountList,
-    CountList& activeEntityCountList,
     const BalanceList& balanceList,
     utils::btc::WeightedQuickUnion& quickUnion,
     const std::set<BtcId>& exchangeRootAddresseIds
@@ -651,7 +651,6 @@ BalanceList processYearMonthAddressBalance(
 
         clusterBalances.at(entityId) += std::max(0.0, balance);
         entityCountList.at(entityId) = 1;
-        activeEntityCountList.at(entityId) = 1;
 
         ++currentAddressId;
     }
