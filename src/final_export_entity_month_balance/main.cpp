@@ -746,17 +746,16 @@ void generateEntityAverageBalance(
         }
 
         double segmentTotalBalance = 0;
-        double segmentFinalBalance = 0;
         for (auto currentIndex = startIndex; currentIndex != endIndex; ++currentIndex) {
             segmentTotalBalance += balanceList[currentIndex].second;
-            segmentFinalBalance = balanceList[currentIndex].second;
         }
-        double segmentEntityCount = endIndex - startIndex;
-        double segmentAverageBalance = segmentEntityCount > 0
-            ? segmentTotalBalance / segmentEntityCount : segmentFinalBalance;
 
         double minBalance = balanceList[startIndex].second;
         double maxBalance = balanceList[endIndex - 1].second;
+        double segmentEntityCount = endIndex - startIndex;
+        double segmentAverageBalance = segmentEntityCount > 0
+            ? segmentTotalBalance / segmentEntityCount : maxBalance;
+
         outputFile << fmt::format(
             "{},{},{},{},{:.19g},{:.19g},{:.19g}",
             startPercent, startPercent + 1, startIndex, endIndex,
