@@ -746,11 +746,14 @@ void generateEntityAverageBalance(
         }
 
         double segmentTotalBalance = 0;
+        double segmentFinalBalance = 0;
         for (auto currentIndex = startIndex; currentIndex != endIndex; ++currentIndex) {
             segmentTotalBalance += balanceList[currentIndex].second;
+            segmentFinalBalance = balanceList[currentIndex].second;
         }
         double segmentEntityCount = endIndex - startIndex;
-        double segmentAverageBalance = segmentTotalBalance / segmentEntityCount;
+        double segmentAverageBalance = segmentEntityCount > 0
+            ? segmentTotalBalance / segmentEntityCount : segmentFinalBalance;
 
         double minBalance = balanceList[startIndex].second;
         double maxBalance = balanceList[endIndex - 1].second;
