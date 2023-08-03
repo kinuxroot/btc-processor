@@ -858,7 +858,7 @@ bool isToRemoveEntity(
     const utils::btc::ClusterLabels clusterLabel,
     const AverageFilterOption& averageFilterOptions
 ) {
-    bool onlyLongTerm = averageFilterOptions.onlyLongTerm;
+    bool onlyLongTerm = averageFilterOptions.onlyLongTerm && currentYear != 2009;
     if (onlyLongTerm && (!isActive || entityYear >= currentYear)) {
         return true;
     }
